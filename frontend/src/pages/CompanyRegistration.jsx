@@ -9,6 +9,7 @@ import EditOverlay from "../components/edit-overlay";
 import ConfirmationDialog from "../components/confirm-dialog";
 import { useToast } from "../components/toast";
 import { Plus, List as ListIcon, Save, X, Search } from "lucide-react";
+import Pagination from "../components/pagination";
 
 /* ---------- form ---------- */
 function FirmForm({ draft, setDraft, isEditing }) {
@@ -56,6 +57,8 @@ export default function FirmRegistration() {
 
   const [tab, setTab] = useState("add");
   const [rows, setRows] = useState([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const [draft, setDraft] = useState({ name: "", address: "", gst_no: "" });
   const [editingId, setEditingId] = useState(null);
@@ -110,11 +113,18 @@ export default function FirmRegistration() {
       [r.name, r.address, r.gst_no].join(" ").toLowerCase().includes(s)
     );
   }, [q, rows]);
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const start = (page - 1) * pageSize;
+  const end = Math.min(start + pageSize, total);
+  const rowsForTable = useMemo(() => (
+    filtered.slice(start, end).map((r, i) => ({ ...r, _sn: start + i + 1 }))
+  ), [filtered, start, end]);
 
-  const rowsForTable = useMemo(
-    () => filtered.map((r, i) => ({ ...r, _sn: i + 1 })),
-    [filtered]
-  );
+  useEffect(() => { setPage(1); }, [q]);
+  useEffect(() => {
+    if (page > pages) setPage(pages);
+  }, [page, pages]);
 
   /* ---- CRUD ---- */
   async function save() {
@@ -203,7 +213,7 @@ export default function FirmRegistration() {
         {tab === "add" && (
           <>
             <FirmForm draft={draft} setDraft={setDraft} isEditing={false} />
-            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+            <div className="mt-4 mb-24 flex flex-wrap items-center justify-end gap-2">
               <button
                 onClick={() => setDraft({ name: "", address: "", gst_no: "" })}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5 ${glass}`}
@@ -217,6 +227,7 @@ export default function FirmRegistration() {
                 <Save size={16} /> Create
               </button>
             </div>
+            <div className="h-10" aria-hidden="true" />
           </>
         )}
 
@@ -245,6 +256,7 @@ export default function FirmRegistration() {
                 if (type === "delete") onAskDelete(() => onDelete(row));
               }}
             />
+            <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} />
           </div>
         )}
       </div>

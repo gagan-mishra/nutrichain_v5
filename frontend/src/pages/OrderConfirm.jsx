@@ -16,6 +16,7 @@ import DataTable from "../components/table";
 import ConfirmationDialog from "../components/confirm-dialog";
 import EditOverlay from "../components/edit-overlay";
 import { useToast } from "../components/toast";
+import Pagination from "../components/pagination";
 import {
   Plus,
   List as ListIcon,
@@ -240,6 +241,10 @@ export default function OrderConfirm() {
   // Data
   const [rows, setRows] = useState([]);
   const [deleted, setDeleted] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageDel, setPageDel] = useState(1);
+  const pageSize = 10;
+  const pageSizeDel = 10;
 
   // Lookups
   const [sellerOptions, setSellerOptions] = useState([]);
@@ -292,6 +297,12 @@ export default function OrderConfirm() {
     ],
     []
   );
+  const totalDel = deleted.length;
+  const pagesDel = Math.max(1, Math.ceil(totalDel / pageSizeDel));
+  const startDel = (pageDel - 1) * pageSizeDel;
+  const endDel = Math.min(startDel + pageSizeDel, totalDel);
+  const pageRowsDel = useMemo(() => deleted.slice(startDel, endDel), [deleted, startDel, endDel]);
+  useEffect(() => { if (pageDel > pagesDel) setPageDel(pagesDel); }, [pageDel, pagesDel]);
 
   /* ----------- initial firm/fy lists ----------- */
   useEffect(() => {
@@ -398,6 +409,13 @@ export default function OrderConfirm() {
     });
     return base;
   }, [q, rows, sortAsc]);
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const start = (page - 1) * pageSize;
+  const end = Math.min(start + pageSize, total);
+  const pageRows = useMemo(() => filtered.slice(start, end), [filtered, start, end]);
+  useEffect(() => { setPage(1); }, [q, sortAsc]);
+  useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
 
   /* ----------- helpers ----------- */
   function resolveLabel(options, value) {
@@ -630,7 +648,7 @@ export default function OrderConfirm() {
               productOptions={productOptions}
               isEditing={false}
             />
-            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+            <div className="mt-4 mb-24 flex flex-wrap items-center justify-end gap-2">
               <button
                 onClick={() => setDraft({ status: "Open" })}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5 ${glass}`}
@@ -644,6 +662,7 @@ export default function OrderConfirm() {
                 <Save size={16} /> Create
               </button>
             </div>
+            <div className="h-10" aria-hidden="true" />
           </>
         )}
 
@@ -677,7 +696,8 @@ export default function OrderConfirm() {
               </div>
             </div>
 
-            <DataTable columns={columns} rows={filtered} onAction={onAction} />
+            <DataTable columns={columns} rows={pageRows} onAction={onAction} />
+            <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} />
           </div>
         )}
 
@@ -691,12 +711,13 @@ export default function OrderConfirm() {
             </div>
             <DataTable
               columns={delColumns}
-              rows={deleted}
+              rows={pageRowsDel}
               allowedActions={["delete"]} // only show the trash icon, used as "Purge"
               onAction={(type, rec) => {
                 if (type === "delete") onAskDelete(() => purge(rec.id));
               }}
             />
+            <Pagination total={totalDel} page={pageDel} pageSize={pageSizeDel} onPage={setPageDel} />
             <div className="mt-2 text-xs text-white/60">
               {deleted.length} deleted record(s)
             </div>

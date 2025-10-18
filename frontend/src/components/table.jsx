@@ -12,15 +12,15 @@ export default function DataTable({
   indexStart = 1,               // 👈 NEW
 }) {
   return (
-    <div className={`overflow-x-auto ${glass} rounded-2xl`}>
-      <table className="min-w-full text-left text-sm text-white">
+    <div className={`overflow-x-auto ${glass} rounded-2xl mb-10`}>
+      <table className="min-w-full text-left text-xs sm:text-sm text-white">
         <thead className="border-b border-white/10 text-white/70">
           <tr>
-            {indexColumn && <th className="px-3 py-2 font-semibold w-12">#</th>}
+            {indexColumn && <th className="px-2 sm:px-3 py-2 font-semibold w-10 sm:w-12">#</th>}
             {columns.map((c) => (
-              <th key={c.key} className="px-3 py-2 font-semibold">{c.label}</th>
+              <th key={c.key} className="px-2 sm:px-3 py-2 font-semibold whitespace-nowrap">{c.label}</th>
             ))}
-            <th className="px-3 py-2 font-semibold">Actions</th>
+            <th className="px-2 sm:px-3 py-2 font-semibold">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -34,15 +34,15 @@ export default function DataTable({
 
           {rows.map((r, i) => (
             <tr key={r.id ?? i} className="border-t border-white/10 hover:bg-white/5">
-              {indexColumn && <td className="px-3 py-2">{indexStart + i}</td>}
+              {indexColumn && <td className="px-2 sm:px-3 py-2">{indexStart + i}</td>}
 
               {columns.map((c) => (
-                <td key={c.key} className="px-3 py-2">
+                <td key={c.key} className="px-2 sm:px-3 py-2 whitespace-nowrap">
                   {c.render ? c.render(r[c.key], r, i) : r[c.key]}
                 </td>
               ))}
 
-              <td className="px-3 py-2">
+              <td className="px-2 sm:px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
                   {allowedActions.includes("print") && (
                     <IconButton title="Print" onClick={() => onAction?.("print", r)}><Printer size={16}/></IconButton>

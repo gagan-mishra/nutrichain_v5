@@ -534,6 +534,7 @@ import DataTable from "../components/table";
 import EditOverlay from "../components/edit-overlay";
 import ConfirmationDialog from "../components/confirm-dialog";
 import { Plus, List as ListIcon, Save, X } from "lucide-react";
+import Pagination from "../components/pagination";
 import { useToast } from "../components/toast";
 
 const MAX_EMAILS = 6;
@@ -737,6 +738,8 @@ export default function PartyRegistration() {
   // page state
   const [tab, setTab] = useState("add");
   const [rows, setRows] = useState([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const [draft, setDraft] = useState({ ...EMPTY });
   const [editingId, setEditingId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -821,7 +824,16 @@ export default function PartyRegistration() {
     });
   }, [q, rows]);
 
-  const rowsForTable = useMemo(() => filtered.map((r, i) => ({ ...r, _sn: i + 1 })), [filtered]);
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const start = (page - 1) * pageSize;
+  const end = Math.min(start + pageSize, total);
+  const rowsForTable = useMemo(
+    () => filtered.slice(start, end).map((r, i) => ({ ...r, _sn: start + i + 1 })),
+    [filtered, start, end]
+  );
+  useEffect(() => { setPage(1); }, [q]);
+  useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
 
   /* ------------------------------- CRUD -------------------------------- */
   async function save() {
@@ -919,7 +931,7 @@ export default function PartyRegistration() {
         {tab === "add" && (
           <>
             <PartyForm draft={draft} setDraft={setDraft} isEditing={false} />
-            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+            <div className="mt-2 mb-24 flex flex-wrap items-center justify-end gap-2">
               <button
                 onClick={() => setDraft({ ...EMPTY })}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5 ${glass}`}
@@ -933,6 +945,7 @@ export default function PartyRegistration() {
                 <Save size={16} /> Create
               </button>
             </div>
+            <div className="h-10" aria-hidden="true" />
           </>
         )}
 
@@ -968,6 +981,7 @@ export default function PartyRegistration() {
                 }
               }}
             />
+            <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} />
           </div>
         )}
       </div>

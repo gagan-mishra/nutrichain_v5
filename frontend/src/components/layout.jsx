@@ -84,6 +84,7 @@ export function AppShell({
 }) {
   const nav = useNavigate();
   const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Define sections with paths for navigation
   const sections = useMemo(
@@ -132,7 +133,10 @@ export function AppShell({
   }, [allItems, location.pathname, _activeKeyProp]);
 
   // Keep the correct section open for the active route
-  const [open, setOpen] = useState("master");
+  const [open, setOpen] = useState(() => {
+    const found = allItems.find((it) => location.pathname.startsWith(it.path));
+    return found?.sectionId || "master";
+  });
   useEffect(() => {
     const found = allItems.find((it) => location.pathname.startsWith(it.path));
     if (found?.sectionId) setOpen(found.sectionId);
@@ -143,21 +147,22 @@ export function AppShell({
     _setActiveKey?.(it.key);
     // navigate to route
     if (it.path) nav(it.path);
+    setMobileOpen(false);
   };
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#030712" }}>
       {/* Sidebar (sticky) */}
       <aside className={`relative hidden w-72 shrink-0 flex-col p-3 text-white md:flex ${glass} md:sticky md:top-0 md:h-screen md:overflow-y-auto`}>
-        <div className={`mb-3 rounded-2xl p-3 ${glass}`}>
+        <div className={`mb-3 rounded-2xl p-4 ${glass}`}>
           <div className="mb-1 text-xs uppercase tracking-wider text-white/50">Context</div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Layers size={16} className="opacity-80" />
-              <span className="text-sm font-medium">{firm?.name || "Select Firm"}</span>
+              <span className="text-sm font-medium truncate">{firm?.name || "Select Firm"}</span>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-2 text-white/80">
+          <div className="mt-3 flex items-center gap-3 text-white/80">
             <CalendarBadge fy={fy} />
           </div>
         </div>
@@ -190,6 +195,15 @@ export function AppShell({
           style={{ background: "linear-gradient(180deg, rgba(3,7,18,0.85), rgba(3,7,18,0.65))" }}
         >
           <div className="flex items-center gap-3 text-white">
+            {/* Mobile menu toggle */}
+            <button
+              type="button"
+              aria-label="Open menu"
+              className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5"
+              onClick={() => setMobileOpen(true)}
+            >
+              <ChevronRight size={18} className="rotate-180" />
+            </button>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5">
               <Layers size={18} />
             </div>
@@ -200,8 +214,11 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-3 text-white">
-            <FirmPill firm={firm} firms={firms} onPick={setFirm} />
-            <FyPill fy={fy} fys={fys} onPick={setFy} />
+            {/* Hide pickers on mobile to reduce congestion; available in drawer */}
+            <div className="hidden md:flex items-center gap-3">
+              <FirmPill firm={firm} firms={firms} onPick={setFirm} />
+              <FyPill fy={fy} fys={fys} onPick={setFy} />
+            </div>
 
             <div className="hidden md:flex items-center gap-3">
               <div className="h-8 w-px bg-white/10" />
@@ -230,7 +247,7 @@ export function AppShell({
             <div className="text-xs uppercase tracking-widest text-white/50">Active</div>
             <h1 className="text-lg font-semibold">{labelFromKey(activeKey)}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
               Firm: <strong className="ml-1 text-white">{firm?.name || "—"}</strong>
             </span>
@@ -241,12 +258,81 @@ export function AppShell({
         </div>
 
         {/* Content */}
-        <div className="min-h-[60vh] flex-1 p-6">
+        <div className="min-h-[60vh] flex-1 p-6 pb-40 pb-[env(safe-area-inset-bottom)]">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
             {children}
           </motion.div>
         </div>
       </div>
+      
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-40">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Panel */}
+          <div className={`absolute left-0 top-0 h-full w-72 p-3 text-white ${glass} overflow-y-auto`}
+               style={{ backgroundColor: "rgba(17,24,39,0.85)" }}>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers size={16} className="opacity-80" />
+                <span className="text-sm font-medium">{firm?.name || "Select Firm"}</span>
+              </div>
+              <button
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 border border-white/10"
+                aria-label="Close menu"
+                onClick={() => setMobileOpen(false)}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div className={`mb-3 rounded-2xl p-4 ${glass}`}>
+              <div className="mb-2 text-xs uppercase tracking-wider text-white/50">Context</div>
+              <div className="flex flex-col gap-2">
+                <FirmPill firm={firm} firms={firms || []} onPick={setFirm} />
+                <FyPill fy={fy} fys={fys || []} onPick={setFy} />
+              </div>
+            </div>
+
+            <nav className="flex flex-col gap-1">
+              {sections.map((s) => (
+                <Section
+                  key={s.id}
+                  label={s.label}
+                  icon={s.icon}
+                  items={s.items}
+                  isOpen={open === s.id}
+                  onToggle={() => setOpen(open === s.id ? "" : s.id)}
+                  activeKey={activeKey}
+                  onSelect={onSelect}
+                />
+              ))}
+            </nav>
+
+            <div className={`mt-3 rounded-2xl p-3 text-xs text-white/70 ${glass}`}>
+              Tip: Switch firm/FY from the header.
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("firmId");
+                  localStorage.removeItem("fyId");
+                  setMobileOpen(false);
+                  nav("/login", { replace: true });
+                }}
+                className="w-full rounded-xl px-3 py-2 text-sm bg-white/10 hover:bg-white/20 border border-white/10"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -739,7 +739,7 @@ export default function PartyRegistration() {
   const [tab, setTab] = useState("add");
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
   const [draft, setDraft] = useState({ ...EMPTY });
   const [editingId, setEditingId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -832,7 +832,7 @@ export default function PartyRegistration() {
     () => filtered.slice(start, end).map((r, i) => ({ ...r, _sn: start + i + 1 })),
     [filtered, start, end]
   );
-  useEffect(() => { setPage(1); }, [q]);
+  useEffect(() => { setPage(1); }, [q, pageSize]);
   useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
 
   /* ------------------------------- CRUD -------------------------------- */
@@ -981,7 +981,7 @@ export default function PartyRegistration() {
                 }
               }}
             />
-            <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} />
+            <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} onPageSize={setPageSize} />
           </div>
         )}
       </div>

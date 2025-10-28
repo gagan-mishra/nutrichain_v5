@@ -12,7 +12,7 @@ export function useOutsideClick(ref, onClick) {
   }, [ref, onClick]);
 }
 
-function useFloating(triggerRef, open, widthPx = 288) {
+function useFloating(triggerRef, panelRef, open, widthPx = 288) {
   const [style, setStyle] = useState({ left: 0, top: 0, width: widthPx });
 
   useLayoutEffect(() => {
@@ -29,7 +29,21 @@ function useFloating(triggerRef, open, widthPx = 288) {
       let left = Math.min(r.left, Math.max(8, window.innerWidth - w - 8));
       if (r.right - w >= 8) left = r.right - w;
 
-      const top = Math.min(r.bottom + gap, window.innerHeight - 8);
+      // Measure panel height if available; fallback to a reasonable estimate.
+      const ph = panelRef.current?.offsetHeight || Math.min(360, Math.floor(window.innerHeight * 0.5));
+      const downTop = r.bottom + gap;
+      const upTop = r.top - ph - gap;
+      let top;
+      if (downTop + ph <= window.innerHeight - 8) {
+        // fits below
+        top = downTop;
+      } else if (upTop >= 8) {
+        // fits above
+        top = upTop;
+      } else {
+        // clamp within viewport
+        top = Math.max(8, Math.min(downTop, window.innerHeight - ph - 8));
+      }
 
       setStyle((prev) => {
         if (prev.left !== left || prev.top !== top || prev.width !== w) {
@@ -57,7 +71,7 @@ function useFloating(triggerRef, open, widthPx = 288) {
 export function Popover({ open, onClose, anchorRef, widthPx = 288, children }) {
   const panelRef = useRef(null);
   useOutsideClick(panelRef, onClose);
-  const style = useFloating(anchorRef, open, widthPx);
+  const style = useFloating(anchorRef, panelRef, open, widthPx);
 
   return createPortal(
     <AnimatePresence>
@@ -73,6 +87,7 @@ export function Popover({ open, onClose, anchorRef, widthPx = 288, children }) {
             bg-white/10 backdrop-blur-2xl backdrop-saturate-200
             border border-white/10 ring-1 ring-white/20
             shadow-[0_10px_50px_rgba(0,0,0,0.45)]
+            max-h-[calc(100vh-16px)] overflow-auto
           "
           style={style}
         >

@@ -243,8 +243,8 @@ export default function OrderConfirm() {
   const [deleted, setDeleted] = useState([]);
   const [page, setPage] = useState(1);
   const [pageDel, setPageDel] = useState(1);
-  const pageSize = 10;
-  const pageSizeDel = 10;
+  const [pageSize, setPageSize] = useState(10);
+  const [pageSizeDel, setPageSizeDel] = useState(10);
 
   // Lookups
   const [sellerOptions, setSellerOptions] = useState([]);
@@ -302,7 +302,7 @@ export default function OrderConfirm() {
   const startDel = (pageDel - 1) * pageSizeDel;
   const endDel = Math.min(startDel + pageSizeDel, totalDel);
   const pageRowsDel = useMemo(() => deleted.slice(startDel, endDel), [deleted, startDel, endDel]);
-  useEffect(() => { if (pageDel > pagesDel) setPageDel(pagesDel); }, [pageDel, pagesDel]);
+  useEffect(() => { if (pageDel > pagesDel) setPageDel(pagesDel); }, [pageDel, pagesDel, pageSizeDel]);
 
   /* ----------- initial firm/fy lists ----------- */
   useEffect(() => {
@@ -414,7 +414,7 @@ export default function OrderConfirm() {
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
   const pageRows = useMemo(() => filtered.slice(start, end), [filtered, start, end]);
-  useEffect(() => { setPage(1); }, [q, sortAsc]);
+  useEffect(() => { setPage(1); }, [q, sortAsc, pageSize]);
   useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
 
   /* ----------- helpers ----------- */
@@ -697,7 +697,7 @@ export default function OrderConfirm() {
             </div>
 
             <DataTable columns={columns} rows={pageRows} onAction={onAction} />
-            <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} />
+            <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} onPageSize={setPageSize} />
           </div>
         )}
 
@@ -717,7 +717,7 @@ export default function OrderConfirm() {
                 if (type === "delete") onAskDelete(() => purge(rec.id));
               }}
             />
-            <Pagination total={totalDel} page={pageDel} pageSize={pageSizeDel} onPage={setPageDel} />
+            <Pagination total={totalDel} page={pageDel} pageSize={pageSizeDel} onPage={setPageDel} onPageSize={setPageSizeDel} />
             <div className="mt-2 text-xs text-white/60">
               {deleted.length} deleted record(s)
             </div>

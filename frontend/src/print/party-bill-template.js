@@ -214,7 +214,7 @@ function fmtDMY(iso) {
   const yy = dt.getFullYear();
   return `${dd}/${mm}/${yy}`;
 }
-function num(v) { return (Number(v || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function num(v) { return (Number(v || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
 
 // ---- helpers: amount in words (Indian numbering) ----

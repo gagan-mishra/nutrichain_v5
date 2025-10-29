@@ -1,5 +1,5 @@
 import React from "react";
-import { Printer, Mail, Pencil, Trash2, Download } from "lucide-react";
+import { Printer, Mail, Pencil, Trash2, Download, Banknote } from "lucide-react";
 import { glass } from "./primitives";
 import { IconButton } from "./primitives";
 
@@ -55,6 +55,9 @@ export default function DataTable({
                   )}
                   {allowedActions.includes("edit") && (
                     <IconButton title="Edit" onClick={() => onAction?.("edit", r)}><Pencil size={16}/></IconButton>
+                  )}
+                  {allowedActions.includes("receive") && (
+                    <IconButton title="Receive" onClick={() => onAction?.("receive", r)}><Banknote size={16}/></IconButton>
                   )}
                   {allowedActions.includes("delete") && (
                     <IconButton title="Delete" onClick={() => onAction?.("delete", r)}><Trash2 size={16}/></IconButton>

@@ -1,2 +1,8 @@
 @import "tailwindcss";
 
+/* Ensure dropdown options are readable in dark UI (Windows/Chrome).
+   Many browsers render <option> on a native white popup; forcing the
+   option text to dark prevents "white on white" invisible items. */
+@layer base {
+  select option { color: #111 !important; }
+}

@@ -90,6 +90,7 @@ export default function PartyBill() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  // Receipts-related UI moved to Bill Receive page
 
   useEffect(() => {
     // load firms + fiscal years (for header context)
@@ -137,6 +138,8 @@ export default function PartyBill() {
   const [pendingAction, setPendingAction] = useState(null);
   const askDelete = (cb) => { setPendingAction(() => cb); setConfirmOpen(true); };
 
+  // Receive overlay moved to Bill Receive page
+
   async function refresh() {
     try {
       const { data } = await api.get('/billing/party-bills');
@@ -159,6 +162,8 @@ export default function PartyBill() {
     }
   }
   useEffect(() => { if (firm?.id) refresh(); }, [firm?.id, fy?.id]);
+
+  // Receive handlers removed from this page
 
   async function save() {
     if (!partyId) return toast.error("Select a party");
@@ -233,6 +238,8 @@ export default function PartyBill() {
   const pageRows = useMemo(() => sorted.slice(start, end), [sorted, start, end]);
   useEffect(() => { setPage(1); }, [q, pageSize]);
   useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
+
+  // Summaries are not shown on this page
 
   return (
     <AppShell
@@ -371,7 +378,7 @@ export default function PartyBill() {
             <DataTable
               columns={columns}
               rows={pageRows}
-              allowedActions={["download","print","edit","delete","mail"]}
+              allowedActions={["download","print","mail","edit","delete"]}
               onAction={(type, row) => {
                 if (type === "download") {
                   (async () => {
@@ -464,6 +471,8 @@ export default function PartyBill() {
             setPendingAction(null);
           }}
         />
+
+        {/* Receipts moved to Bill Receive page */}
       </div>
     </AppShell>
   );

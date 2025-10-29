@@ -6,6 +6,7 @@ import ProductRegistration from "./pages/ProductRegistration";
 import Login from "./pages/Login.jsx";
 import FirmRegistration from "./pages/CompanyRegistration.jsx";
 import PartyBill from "./pages/PartyBill.jsx";
+import BillReceive from "./pages/BillReceive.jsx";
 
 
 
@@ -30,6 +31,10 @@ export default function App() {
       <Route
         path="/sales/party-bill"
         element={<Private><PartyBill /></Private>}
+      />
+      <Route
+        path="/sales/bill-receive"
+        element={<Private><BillReceive /></Private>}
       />
       {/* default redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />

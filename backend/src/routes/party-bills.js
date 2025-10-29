@@ -251,6 +251,158 @@ router.get('/compute', async (req, res) => {
   }
 });
 
+// ---------- Receipts: record bill payments ----------
+// Expected table (DDL to be created in DB):
+// CREATE TABLE IF NOT EXISTS party_bill_receipts (
+//   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+//   firm_id BIGINT NOT NULL,
+//   party_bill_id BIGINT NOT NULL,
+//   party_id BIGINT NOT NULL,
+//   receive_date DATE NOT NULL,
+//   amount DECIMAL(12,2) NOT NULL,
+//   mode VARCHAR(20) NULL,
+//   reference_no VARCHAR(100) NULL,
+//   notes TEXT NULL,
+//   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//   INDEX (firm_id, party_bill_id)
+// );
+
+// Get receipts for a bill
+router.get('/:id/receipts', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const firmId = req.ctx.firmId;
+    const [rows] = await pool.execute(
+      `SELECT r.id, r.receive_date, r.amount, r.mode, r.reference_no, r.notes, r.created_at
+         FROM party_bill_receipts r
+        WHERE r.firm_id = ? AND r.party_bill_id = ?
+        ORDER BY r.receive_date DESC, r.id DESC`,
+      [firmId, id]
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error('party-bills receipts LIST error:', e);
+    res.status(500).json({ error: 'failed to fetch receipts' });
+  }
+});
+
+// Add a receipt to a bill
+router.post('/:id/receipts', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const firmId = req.ctx.firmId;
+    const b = req.body || {};
+
+    // Verify bill belongs to this firm, and get party_id
+    const [[bill]] = await pool.execute(
+      'SELECT id, party_id FROM party_bills WHERE id = ? AND firm_id = ? LIMIT 1',
+      [id, firmId]
+    );
+    if (!bill) return res.status(404).json({ error: 'bill not found' });
+
+    const amount = Number(b.amount);
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'amount must be > 0' });
+    const receiveDate = b.receive_date || toDateStr(new Date());
+    const mode = (b.mode || '').toUpperCase() || null; // CASH | BANK | UPI | CHEQUE | OTHER
+    const referenceNo = b.reference_no || null;
+    const notes = b.notes || null;
+
+    const [r] = await pool.execute(
+      `INSERT INTO party_bill_receipts
+        (firm_id, party_bill_id, party_id, receive_date, amount, mode, reference_no, notes)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      [firmId, id, bill.party_id, receiveDate, amount, mode, referenceNo, notes]
+    );
+    res.json({ id: r.insertId });
+  } catch (e) {
+    console.error('party-bills receipts CREATE error:', e);
+    res.status(500).json({ error: 'failed to create receipt' });
+  }
+});
+
+// Delete a receipt
+router.delete('/:id/receipts/:rid', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const rid = Number(req.params.rid);
+    const firmId = req.ctx.firmId;
+    const [r] = await pool.execute(
+      `DELETE FROM party_bill_receipts WHERE id = ? AND firm_id = ? AND party_bill_id = ?`,
+      [rid, firmId, id]
+    );
+    if (!r.affectedRows) return res.status(404).json({ error: 'not found' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('party-bills receipts DELETE error:', e);
+    res.status(500).json({ error: 'failed to delete receipt' });
+  }
+});
+
+// Summary for a bill (total, received, outstanding)
+router.get('/:id/summary', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const firmId = req.ctx.firmId;
+
+    // Load bill for range + party
+    const [[bill]] = await pool.execute(
+      `SELECT pb.*, p.name AS party_name, p.gst_type, p.cgst_rate, p.sgst_rate, p.igst_rate,
+              f.gst_no AS firm_gst
+         FROM party_bills pb
+         JOIN parties p ON p.id = pb.party_id
+         JOIN firms f ON f.id = pb.firm_id
+        WHERE pb.id = ? AND pb.firm_id = ?
+        LIMIT 1`,
+      [id, firmId]
+    );
+    if (!bill) return res.status(404).json({ error: 'bill not found' });
+
+    // Compute total using same logic as compute route
+    const from = toDateStr(bill.from_date);
+    const to = toDateStr(bill.to_date);
+    const params = [firmId, from, to, bill.party_id, bill.party_id];
+    const sql = `
+      SELECT c.id, c.seller_id, c.buyer_id,
+             c.seller_brokerage, c.buyer_brokerage, c.min_qty, c.max_qty
+        FROM contracts c
+       WHERE c.firm_id = ? AND c.deleted_at IS NULL
+         AND c.order_date BETWEEN ? AND ?
+         AND (c.seller_id = ? OR c.buyer_id = ?)`;
+    const [rows] = await pool.execute(sql, params);
+
+    const overrideRate = Number(bill.brokerage || 0) || null;
+    let subtotal = 0;
+    for (const r of rows) {
+      const role = r.seller_id === bill.party_id ? 'SELLER' : 'BUYER';
+      const qty = (r.max_qty ?? r.min_qty ?? 0) || 0;
+      const rate = overrideRate != null ? overrideRate : (role === 'SELLER' ? (r.seller_brokerage || 30) : (r.buyer_brokerage || 30));
+      subtotal += Number(qty) * Number(rate);
+    }
+    let cgst = 0, sgst = 0, igst = 0;
+    if (bill.firm_gst) {
+      if (bill.gst_type === 'INTRA') {
+        cgst = subtotal * (Number(bill.cgst_rate || 0) / 100);
+        sgst = subtotal * (Number(bill.sgst_rate || 0) / 100);
+      } else if (bill.gst_type === 'INTER') {
+        igst = subtotal * (Number(bill.igst_rate || 0) / 100);
+      }
+    }
+    const total = subtotal + cgst + sgst + igst;
+
+    // Sum receipts
+    const [[sumRow]] = await pool.execute(
+      `SELECT COALESCE(SUM(amount),0) AS received FROM party_bill_receipts WHERE firm_id = ? AND party_bill_id = ?`,
+      [firmId, id]
+    );
+    const received = Number(sumRow?.received || 0);
+    const outstanding = Number((total - received).toFixed(2));
+    res.json({ total, received, outstanding });
+  } catch (e) {
+    console.error('party-bills SUMMARY error:', e);
+    res.status(500).json({ error: 'failed to compute summary' });
+  }
+});
+
 module.exports = router;
 
 function toDateStr(v) {

@@ -7,7 +7,11 @@ const pool = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 10
+  connectionLimit: 10,
+  // Return DATE/DATETIME as strings to avoid timezone shifts in JS
+  dateStrings: true,
+  // Keep timezone stable; adjust if your server uses a different TZ
+  timezone: 'Z'
 });
 
 module.exports = { pool };

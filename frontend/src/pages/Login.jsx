@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "../api";
 
 
@@ -7,11 +7,19 @@ import { api } from "../api";
 
 export default function Login() {
   const nav = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("password123");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('expired') === '1') {
+      setErr('Your session has expired. Please login again.');
+    }
+  }, [location.search]);
 
     
 

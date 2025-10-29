@@ -1,5 +1,5 @@
 import React from "react";
-import { Printer, Mail, Pencil, Trash2 } from "lucide-react";
+import { Printer, Mail, Pencil, Trash2, Download } from "lucide-react";
 import { glass } from "./primitives";
 import { IconButton } from "./primitives";
 
@@ -44,6 +44,9 @@ export default function DataTable({
 
               <td className="px-2 sm:px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
+                  {allowedActions.includes("download") && (
+                    <IconButton title="Download" onClick={() => onAction?.("download", r)}><Download size={16}/></IconButton>
+                  )}
                   {allowedActions.includes("print") && (
                     <IconButton title="Print" onClick={() => onAction?.("print", r)}><Printer size={16}/></IconButton>
                   )}

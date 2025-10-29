@@ -10,10 +10,15 @@ import Pagination from "../components/pagination";
 import { Plus, List as ListIcon, Save, X, Search } from "lucide-react";
 import { useToast } from "../components/toast";
 import EditOverlay from "../components/edit-overlay";
+import ConfirmationDialog from "../components/confirm-dialog";
+import { usePrintHtml } from "../print/usePrintHtml";
+import { buildPartyBillHtml, buildPartyBillExcelHtml } from "../print/party-bill-template";
 
 function toYMD(d) {
   if (!d) return "";
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d; // already a plain date
   const dt = new Date(d);
+  // use local getters to avoid UTC shifting
   const yyyy = dt.getFullYear();
   const mm = String(dt.getMonth() + 1).padStart(2, "0");
   const dd = String(dt.getDate()).padStart(2, "0");
@@ -21,11 +26,11 @@ function toYMD(d) {
 }
 
 function startEndFromFy(fy) {
-  // Prefer explicit dates from API
+  // Prefer explicit dates from API (assumed YYYY-MM-DD strings)
   if (fy?.startDate && fy?.endDate) {
     return { from: toYMD(fy.startDate), to: toYMD(fy.endDate), bill: toYMD(fy.endDate) };
   }
-  // Parse label like "2024-25" or "2024"
+  // Parse label like "2024-25" or fallback from today
   const label = String(fy?.label || "");
   const m = label.match(/(\d{4})/);
   let y0;
@@ -33,15 +38,38 @@ function startEndFromFy(fy) {
   else {
     const today = new Date();
     const m0 = today.getMonth(); // 0=Jan
-    y0 = today.getFullYear() - (m0 < 3 ? 1 : 0); // FY starts Apr (month 3)
+    y0 = today.getFullYear() - (m0 < 3 ? 1 : 0); // FY starts Apr
   }
-  const from = new Date(Date.UTC(y0, 3, 1)); // 1 Apr y0
-  const to = new Date(Date.UTC(y0 + 1, 2, 31)); // 31 Mar y0+1
-  return { from: toYMD(from), to: toYMD(to), bill: toYMD(to) };
+  // Build YYYY-MM-DD strings directly to avoid timezone pitfalls
+  const from = `${y0}-04-01`;
+  const to = `${y0 + 1}-03-31`;
+  return { from, to, bill: to };
+}
+
+// ---------- helpers for naming downloaded files ----------
+function firmInitials(name = "") {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  const letters = words.slice(0, 4).map(w => w[0]?.toUpperCase() || "");
+  const ini = letters.join("");
+  return ini || "FIRM";
+}
+function fyRangeStr(from, to) {
+  // prefer like 2024-25 based on start/end year
+  const y1 = (from || "").slice(0, 4);
+  const y2full = (to || "").slice(0, 4);
+  const y2 = y2full ? y2full.slice(-2) : "";
+  return y1 && y2 ? `${y1}-${y2}` : (y1 || y2full || "");
+}
+function fileSafe(s = "") {
+  return String(s)
+    .replace(/[\\/:*?"<>|]+/g, "-") // remove illegal filename chars
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export default function PartyBill() {
   const toast = useToast();
+  const { open: openPrint } = usePrintHtml();
   const { firm, fy, setFirm, setFy } = useCtx();
   const [firms, setFirms] = useState([]);
   const [fys, setFys] = useState([]);
@@ -57,7 +85,7 @@ export default function PartyBill() {
   const [brokerage, setBrokerage] = useState("");
   const [billId, setBillId] = useState("");
 
-  // Local list (placeholder until backend is defined)
+  // Bills list (persisted via backend)
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -105,42 +133,77 @@ export default function PartyBill() {
 
   const [editingId, setEditingId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const askDelete = (cb) => { setPendingAction(() => cb); setConfirmOpen(true); };
 
-  function save() {
+  async function refresh() {
+    try {
+      const { data } = await api.get('/billing/party-bills');
+      setRows((data || []).map((r) => ({
+        id: r.id,
+        partyId: r.party_id,
+        partyName: r.party_name,
+        from: toYMD(r.from_date),
+        to: toYMD(r.to_date),
+        billDate: toYMD(r.bill_date),
+        brokerage: Number(r.brokerage || 0),
+        billId: r.bill_no || '',
+        mailedAt: r.mailed_at || null,
+        createdAt: r.created_at,
+      })));
+    } catch (e) {
+      console.error(e);
+      const msg = e?.response?.data?.error || e?.message || 'Failed to load bills';
+      toast.error(msg);
+    }
+  }
+  useEffect(() => { if (firm?.id) refresh(); }, [firm?.id, fy?.id]);
+
+  async function save() {
     if (!partyId) return toast.error("Select a party");
     if (!from || !to) return toast.error("Select a date range");
     if (new Date(from) > new Date(to)) return toast.error("From date cannot be after To date");
-    const rec = {
-      id: editingId ?? Date.now(),
-      partyId,
-      partyName: parties.find((p) => p.value === partyId)?.label || "",
-      from,
-      to,
-      billDate,
+    const body = {
+      party_id: partyId,
+      bill_no: billId?.trim() || null,
+      from_date: from,
+      to_date: to,
+      bill_date: billDate,
       brokerage: Number(brokerage || 0),
-      billId: billId?.trim() || "",
-      createdAt: new Date().toISOString(),
+      fiscal_year_id: fy?.id,
     };
-    if (editingId) {
-      setRows((xs) => xs.map((r) => (r.id === editingId ? rec : r)));
-      toast.success("Bill updated");
-      setEditingId(null);
-      setEditOpen(false);
-    } else {
-      setRows((xs) => [rec, ...xs]);
-      toast.success("Bill created (local)");
-      setTab("list");
+    try {
+      if (editingId) {
+        await api.put(`/billing/party-bills/${editingId}`, body);
+        toast.success('Bill updated');
+        setEditOpen(false);
+        setEditingId(null);
+      } else {
+        await api.post('/billing/party-bills', body);
+        toast.success('Bill created');
+        setTab('list');
+      }
+      await refresh();
+    } catch (e) {
+      console.error(e);
+      const msg = e?.response?.data?.error || e?.message || 'Failed to save bill';
+      toast.error(msg);
     }
   }
 
   const columns = [
-    { key: "_sn", label: "#" },
+    { key: "billId", label: "Bill No." },
     { key: "partyName", label: "Party" },
     { key: "from", label: "From" },
     { key: "to", label: "To" },
     { key: "billDate", label: "Bill Date" },
     { key: "brokerage", label: "Brokerage" },
-    { key: "billId", label: "Bill ID" },
+    { key: "mailedAt", label: "Mail", render: (v) => (
+      v
+        ? <span className="rounded px-2 py-0.5 text-xs bg-emerald-500/15 border border-emerald-500/25 text-emerald-200">Mailed</span>
+        : <span className="rounded px-2 py-0.5 text-xs bg-yellow-500/15 border border-yellow-500/25 text-yellow-200">Not sent</span>
+    )},
   ];
 
   const filtered = useMemo(() => {
@@ -149,11 +212,25 @@ export default function PartyBill() {
     return rows.filter((r) => [r.partyName, r.billId].join(" ").toLowerCase().includes(s));
   }, [q, rows]);
 
-  const total = filtered.length;
+  // natural sort by bill number (numeric if possible, else lexicographic)
+  const sorted = useMemo(() => {
+    const arr = filtered.slice();
+    arr.sort((a, b) => {
+      const A = a.billId ?? a.id ?? '';
+      const B = b.billId ?? b.id ?? '';
+      const nA = Number(A);
+      const nB = Number(B);
+      const bothNumeric = !Number.isNaN(nA) && !Number.isNaN(nB);
+      return bothNumeric ? nA - nB : String(A).localeCompare(String(B));
+    });
+    return arr;
+  }, [filtered]);
+
+  const total = sorted.length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
-  const pageRows = useMemo(() => filtered.slice(start, end).map((r, i) => ({ ...r, _sn: start + i + 1 })), [filtered, start, end]);
+  const pageRows = useMemo(() => sorted.slice(start, end), [sorted, start, end]);
   useEffect(() => { setPage(1); }, [q, pageSize]);
   useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
 
@@ -297,19 +374,51 @@ export default function PartyBill() {
               allowedActions={["download","print","edit","delete","mail"]}
               onAction={(type, row) => {
                 if (type === "download") {
-                  const headers = ["Party","From","To","Bill Date","Brokerage","Bill ID"];
-                  const values = [row.partyName, row.from, row.to, row.billDate, row.brokerage, row.billId];
-                  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-                  const csv = [headers.join(","), values.map(esc).join(",")].join("\n");
-                  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `party-bill-${row.billId || row.id}.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
+                  (async () => {
+                    try {
+                      const { data } = await api.get('/billing/party-bills/compute', { params: {
+                        party_id: row.partyId,
+                        from: row.from,
+                        to: row.to,
+                        bill_date: row.billDate,
+                        bill_no: row.billId,
+                        brokerage: row.brokerage,
+                      }});
+                      const html = buildPartyBillExcelHtml(data);
+                      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      const ini = firmInitials(firm?.name);
+                      const party = fileSafe(row.partyName || "Party");
+                      const yr = fyRangeStr(row.from, row.to);
+                      const bill = fileSafe(row.billId || row.id || "bill");
+                      a.download = `${bill}. ${ini}. ${party}. ${yr}.xls`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (e) {
+                      console.error(e);
+                      toast.error('Failed to download Excel');
+                    }
+                  })();
                 } else if (type === "print") {
-                  toast.info("Print coming soon");
+                  (async () => {
+                    try {
+                      const { data } = await api.get('/billing/party-bills/compute', { params: {
+                        party_id: row.partyId,
+                        from: row.from,
+                        to: row.to,
+                        bill_date: row.billDate,
+                        bill_no: row.billId,
+                        brokerage: row.brokerage,
+                      }});
+                      const html = buildPartyBillHtml(data);
+                      openPrint(html);
+                    } catch (e) {
+                      console.error(e);
+                      toast.error('Failed to build bill');
+                    }
+                  })();
                 } else if (type === "edit") {
                   setEditingId(row.id);
                   setPartyId(row.partyId);
@@ -320,15 +429,41 @@ export default function PartyBill() {
                   setBillId(row.billId);
                   setEditOpen(true);
                 } else if (type === "delete") {
-                  setRows((xs) => xs.filter((r) => r.id !== row.id));
+                  askDelete(async () => {
+                    try { await api.delete(`/billing/party-bills/${row.id}`); await refresh(); }
+                    catch (e) { console.error(e); toast.error('Failed to delete'); }
+                  });
                 } else if (type === "mail") {
-                  toast.info("Mail coming soon");
+                  (async () => {
+                    toast.info('Preparing email…');
+                    try {
+                      const { data } = await api.post(`/billing/party-bills/${row.id}/mail`);
+                      toast.success(`Mail sent to ${data.to} recipient(s)`);
+                      setRows(xs => xs.map(r => r.id === row.id ? { ...r, mailedAt: data.mailed_at } : r));
+                    } catch (e) {
+                      console.error(e);
+                      const msg = e?.response?.data?.error || 'Failed to send mail';
+                      toast.error(msg);
+                    }
+                  })();
                 }
               }}
             />
             <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} onPageSize={setPageSize} />
           </div>
         )}
+        <ConfirmationDialog
+          open={confirmOpen}
+          title="Delete bill?"
+          message="This will permanently remove the bill."
+          confirmLabel="Delete"
+          onCancel={() => { setConfirmOpen(false); setPendingAction(null); }}
+          onConfirm={async () => {
+            setConfirmOpen(false);
+            if (pendingAction) await pendingAction();
+            setPendingAction(null);
+          }}
+        />
       </div>
     </AppShell>
   );

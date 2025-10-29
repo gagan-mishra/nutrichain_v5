@@ -9,6 +9,8 @@ const firms = require('./routes/firms');
 const parties = require('./routes/parties');
 const contracts = require('./routes/contracts');
 const productsRouter = require('./routes/products');
+const partyBills = require('./routes/party-bills');
+const { startBillingCron } = require('./jobs/billing-cron');
 
 
 
@@ -25,6 +27,11 @@ app.use('/firms', firms);
 app.use('/parties', parties);
 app.use('/contracts', contracts);
 app.use('/products', productsRouter);
+app.use('/billing/party-bills', partyBills);
+app.use('/party-bills', partyBills);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+
+// Optional: start scheduler to auto-create bills at FY end
+startBillingCron();

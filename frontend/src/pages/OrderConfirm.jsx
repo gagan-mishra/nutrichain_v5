@@ -38,11 +38,17 @@ function fmtDMY(input) {
     const [y, m, d] = input.split("-");
     return `${d}/${m}/${y}`;
   }
+  if (/^\d{4}-\d{2}-\d{2}T/.test(input)) {
+    // treat as plain date; avoid timezone shifting
+    const s = input.slice(0, 10);
+    const [y, m, d] = s.split("-");
+    return `${d}/${m}/${y}`;
+  }
   const dt = new Date(input);
   if (Number.isNaN(dt.getTime())) return String(input);
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const yy = dt.getUTCFullYear();
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const yy = dt.getFullYear();
   return `${dd}/${mm}/${yy}`;
 }
 

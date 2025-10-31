@@ -62,6 +62,15 @@ export default function BillReceive() {
     })();
   }, []);
 
+  // Pick up party filter from URL if present (for deep-linking from reports)
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const pid = url.searchParams.get('party_id');
+      if (pid) setPartyFilter(Number(pid));
+    } catch (_) {}
+  }, []);
+
   useEffect(() => {
     (async () => {
       const { data } = await api.get("/parties");

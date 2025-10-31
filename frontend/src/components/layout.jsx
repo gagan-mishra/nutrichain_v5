@@ -15,6 +15,7 @@ import {
   ArrowRightLeft,
   ChevronDown,
   ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import { glass } from "./primitives";
 import { FirmPill, FyPill, CalendarBadge } from "./pickers";
@@ -120,6 +121,20 @@ export function AppShell({
           { key: "transaction-report",label: "Transaction Report",path: "/reports/transaction",icon: <ArrowRightLeft size={16} /> },
         ],
       },
+      {
+        id: "analytics",
+        label: (<span className="inline-flex items-center gap-2">Analytics <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/20 border border-yellow-500/30 text-yellow-300">BETA</span></span>),
+        icon: TrendingUp,
+        items: [
+          { key: "analytics-home", label: "Overview", path: "/analytics", icon: <BarChart3 size={16} /> },
+          { key: "aging", label: "Aging", path: "/analytics/aging", icon: <FileText size={16} /> },
+          { key: "payment-behavior", label: "Payment Behavior", path: "/analytics/payment-behavior", icon: <FileText size={16} /> },
+          { key: "brokerage", label: "Brokerage", path: "/analytics/brokerage", icon: <FileText size={16} /> },
+          { key: "top", label: "Top Parties/Products", path: "/analytics/top", icon: <FileText size={16} /> },
+          { key: "cohorts", label: "Cohorts", path: "/analytics/cohorts", icon: <FileText size={16} /> },
+          { key: "anomaly", label: "Anomaly Watch", path: "/analytics/anomaly", icon: <FileText size={16} /> },
+        ],
+      },
     ],
     []
   );
@@ -128,7 +143,9 @@ export function AppShell({
   const allItems = useMemo(() => sections.flatMap((s) => s.items.map((it) => ({ ...it, sectionId: s.id }))), [sections]);
 
   const activeKey = useMemo(() => {
-    const found = allItems.find((it) => location.pathname.startsWith(it.path));
+    // Prefer the longest matching path (so /analytics/aging beats /analytics)
+    const matches = allItems.filter((it) => location.pathname.startsWith(it.path));
+    const found = matches.sort((a, b) => (b.path?.length || 0) - (a.path?.length || 0))[0];
     return found?.key ?? _activeKeyProp ?? "order-confirm";
   }, [allItems, location.pathname, _activeKeyProp]);
 
@@ -350,6 +367,13 @@ function labelFromKey(key) {
     "sales-report": "Sales Report",
     "product-report": "Product Report",
     "transaction-report": "Transaction Report",
+    "analytics-home": "Analytics",
+    "aging": "Aging",
+    "payment-behavior": "Payment Behavior",
+    "brokerage": "Brokerage",
+    "top": "Top Parties/Products",
+    "cohorts": "Cohorts",
+    "anomaly": "Anomaly Watch",
   };
   return map[key] || key;
 }

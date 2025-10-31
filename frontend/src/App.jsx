@@ -11,6 +11,13 @@ import ReportsParty from "./pages/ReportsParty.jsx";
 import ReportsSales from "./pages/ReportsSales.jsx";
 import ReportsProduct from "./pages/ReportsProduct.jsx";
 import ReportsTransactions from "./pages/ReportsTransactions.jsx";
+import Analytics from "./pages/Analytics.jsx";
+import Aging from "./pages/Aging.jsx";
+import PaymentBehavior from "./pages/PaymentBehavior.jsx";
+import Brokerage from "./pages/Brokerage.jsx";
+import TopAnalytics from "./pages/TopAnalytics.jsx";
+import Cohorts from "./pages/Cohorts.jsx";
+import Anomaly from "./pages/Anomaly.jsx";
 
 
 
@@ -56,6 +63,13 @@ export default function App() {
         path="/reports/transaction"
         element={<Private><ReportsTransactions /></Private>}
       />
+      <Route path="/analytics" element={<Private><Analytics /></Private>} />
+      <Route path="/analytics/aging" element={<Private><Aging /></Private>} />
+      <Route path="/analytics/payment-behavior" element={<Private><PaymentBehavior /></Private>} />
+      <Route path="/analytics/brokerage" element={<Private><Brokerage /></Private>} />
+      <Route path="/analytics/top" element={<Private><TopAnalytics /></Private>} />
+      <Route path="/analytics/cohorts" element={<Private><Cohorts /></Private>} />
+      <Route path="/analytics/anomaly" element={<Private><Anomaly /></Private>} />
       {/* default redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

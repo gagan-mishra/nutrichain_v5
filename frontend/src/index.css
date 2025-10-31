@@ -5,4 +5,9 @@
    option text to dark prevents "white on white" invisible items. */
 @layer base {
   select option { color: #111 !important; }
+  /* Make date inputs height match ComboBox nicely */
+  input[type="date"] {
+    padding-top: 0.625rem; /* py-2.5 */
+    padding-bottom: 0.625rem;
+  }
 }

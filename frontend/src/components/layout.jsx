@@ -188,7 +188,7 @@ export function AppShell({
       </aside>
 
       {/* Main area */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+      <div id="app-content" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         {/* Top bar */}
         <div
           className={`sticky top-0 z-30 flex items-center justify-between px-4 py-3 ${glass}`}

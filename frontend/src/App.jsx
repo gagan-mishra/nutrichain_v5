@@ -7,6 +7,10 @@ import Login from "./pages/Login.jsx";
 import FirmRegistration from "./pages/CompanyRegistration.jsx";
 import PartyBill from "./pages/PartyBill.jsx";
 import BillReceive from "./pages/BillReceive.jsx";
+import ReportsParty from "./pages/ReportsParty.jsx";
+import ReportsSales from "./pages/ReportsSales.jsx";
+import ReportsProduct from "./pages/ReportsProduct.jsx";
+import ReportsTransactions from "./pages/ReportsTransactions.jsx";
 
 
 
@@ -35,6 +39,22 @@ export default function App() {
       <Route
         path="/sales/bill-receive"
         element={<Private><BillReceive /></Private>}
+      />
+      <Route
+        path="/reports/party"
+        element={<Private><ReportsParty /></Private>}
+      />
+      <Route
+        path="/reports/sales"
+        element={<Private><ReportsSales /></Private>}
+      />
+      <Route
+        path="/reports/product"
+        element={<Private><ReportsProduct /></Private>}
+      />
+      <Route
+        path="/reports/transaction"
+        element={<Private><ReportsTransactions /></Private>}
       />
       {/* default redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />

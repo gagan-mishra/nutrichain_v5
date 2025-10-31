@@ -10,6 +10,7 @@ const parties = require('./routes/parties');
 const contracts = require('./routes/contracts');
 const productsRouter = require('./routes/products');
 const partyBills = require('./routes/party-bills');
+const reports = require('./routes/reports');
 const { startBillingCron } = require('./jobs/billing-cron');
 
 
@@ -29,6 +30,7 @@ app.use('/contracts', contracts);
 app.use('/products', productsRouter);
 app.use('/billing/party-bills', partyBills);
 app.use('/party-bills', partyBills);
+app.use('/reports', reports);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));

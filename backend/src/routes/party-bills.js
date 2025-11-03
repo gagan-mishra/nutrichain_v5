@@ -43,13 +43,19 @@ router.post('/', async (req, res) => {
 
     // If bill_no missing, assign next numeric within firm + FY
     let billNo = (b.bill_no ?? '').toString().trim();
+    // normalize any provided value to a plain integer string (no leading zeros)
+    if (billNo) {
+      const n = parseInt(billNo, 10);
+      billNo = Number.isFinite(n) && n > 0 ? String(n) : '';
+    }
     if (!billNo) {
-      const [[num]] = await pool.execute(
-        `SELECT COALESCE(MAX(CAST(bill_no AS UNSIGNED)), 0) AS max_no
+      // Compute next number in SQL to avoid JS + string issues for big integers
+      const [[row]] = await pool.execute(
+        `SELECT CAST(COALESCE(MAX(CAST(bill_no AS UNSIGNED)), 0) + 1 AS UNSIGNED) AS next_no
            FROM party_bills WHERE firm_id = ? AND fiscal_year_id = ?`,
         [req.ctx.firmId, fyId]
       );
-      billNo = String((num?.max_no || 0) + 1);
+      billNo = String(row?.next_no || 1);
     }
 
     const sql = `
@@ -83,9 +89,15 @@ router.put('/:id', async (req, res) => {
       UPDATE party_bills SET
         party_id = ?, bill_no = ?, from_date = ?, to_date = ?, bill_date = ?, brokerage = ?
       WHERE id = ? AND firm_id = ?`;
+    // normalize bill number on update as well (strip leading zeros)
+    let billNo = (b.bill_no ?? '').toString().trim();
+    if (billNo) {
+      const n = parseInt(billNo, 10);
+      billNo = Number.isFinite(n) && n > 0 ? String(n) : '';
+    }
     const params = [
       b.party_id,
-      b.bill_no || null,
+      billNo || null,
       b.from_date,
       b.to_date,
       b.bill_date,

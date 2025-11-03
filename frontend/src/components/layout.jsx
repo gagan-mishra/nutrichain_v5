@@ -18,6 +18,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { glass } from "./primitives";
+import ChangePasswordDialog from "./change-password-dialog";
 import { FirmPill, FyPill, CalendarBadge } from "./pickers";
 
 /* ------------ Collapsible section in the sidebar ------------ */
@@ -86,6 +87,7 @@ export function AppShell({
   const nav = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showChangePwd, setShowChangePwd] = useState(false);
 
   // Define sections with paths for navigation
   const sections = useMemo(
@@ -241,6 +243,15 @@ export function AppShell({
               <div className="h-8 w-px bg-white/10" />
               <div className="rounded-lg bg-white/5 px-2 py-1 text-sm text-white">@username</div>
 
+              {/* Change password */}
+              <button
+                onClick={() => setShowChangePwd(true)}
+                className="rounded-lg px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 border border-white/10"
+                title="Change Password"
+              >
+                Change Password
+              </button>
+
               {/* Logout button */}
               <button
                 onClick={() => {
@@ -333,7 +344,13 @@ export function AppShell({
             <div className={`mt-3 rounded-2xl p-3 text-xs text-white/70 ${glass}`}>
               Tip: Switch firm/FY from the header.
             </div>
-            <div className="mt-4">
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => { setMobileOpen(false); setShowChangePwd(true); }}
+                className="w-full rounded-xl px-3 py-2 text-sm bg-white/10 hover:bg-white/20 border border-white/10"
+              >
+                Change Password
+              </button>
               <button
                 onClick={() => {
                   localStorage.removeItem("token");
@@ -350,6 +367,7 @@ export function AppShell({
           </div>
         </div>
       )}
+      <ChangePasswordDialog open={showChangePwd} onClose={() => setShowChangePwd(false)} />
     </div>
   );
 }

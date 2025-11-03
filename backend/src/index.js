@@ -12,6 +12,7 @@ const productsRouter = require('./routes/products');
 const partyBills = require('./routes/party-bills');
 const reports = require('./routes/reports');
 const { startBillingCron } = require('./jobs/billing-cron');
+const { startFyEnsureCron } = require('./jobs/fy-ensure');
 
 
 
@@ -37,3 +38,5 @@ app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
 
 // Optional: start scheduler to auto-create bills at FY end
 startBillingCron();
+// Ensure current FY exists and next FY appears around Mar 30/31
+startFyEnsureCron();

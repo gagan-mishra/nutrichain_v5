@@ -151,7 +151,7 @@ router.get('/sales', async (req, res) => {
 });
 
 // Price series for a product
-// GET /reports/price-series?product_id=&group=day|month&stat=avg|last
+// GET /reports/price-series?product_id=&group=day|month&stat=avg|last|band
 router.get('/price-series', async (req, res) => {
   try {
     const firmId = req.ctx.firmId;
@@ -182,6 +182,27 @@ router.get('/price-series', async (req, res) => {
          ORDER BY period ASC`;
       const [rows] = await pool.execute(sql, params);
       return res.json(rows.map(r=>({ period: r.period, price: r.price==null? null : Number(r.price) })));
+    }
+
+    if (stat === 'band') {
+      const sql = `
+        SELECT DATE_FORMAT(c.order_date, '${fmt}') AS period,
+               MIN(c.price) AS min_price,
+               MAX(c.price) AS max_price,
+               AVG(c.price) AS avg_price,
+               COUNT(*) AS cnt
+          FROM contracts c
+         WHERE ${where}
+         GROUP BY period
+         ORDER BY period ASC`;
+      const [rows] = await pool.execute(sql, params);
+      return res.json(rows.map(r=>({
+        period: r.period,
+        min: r.min_price == null ? null : Number(r.min_price),
+        max: r.max_price == null ? null : Number(r.max_price),
+        avg: r.avg_price == null ? null : Number(r.avg_price),
+        count: Number(r.cnt || 0),
+      })));
     }
 
     // last price by period: take price for max(id) in each period

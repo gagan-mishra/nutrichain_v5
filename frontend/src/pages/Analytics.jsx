@@ -16,10 +16,9 @@ export default function Analytics() {
   const [productId, setProductId] = useState(null);
   const [partyId, setPartyId] = useState(null);
   const [role, setRole] = useState('any');
-  const [series, setSeries] = useState([]);
-  const [labels, setLabels] = useState([]);
+  const [chartData, setChartData] = useState([]);
   const [group, setGroup] = useState('day');
-  const [stat, setStat] = useState('last'); // last|avg
+  const [stat, setStat] = useState('last'); // last|avg|band
   const [showIntro, setShowIntro] = useState(() => localStorage.getItem('analyticsIntroHidden') !== '1');
 
   useEffect(() => {
@@ -37,12 +36,24 @@ export default function Analytics() {
 
   useEffect(()=>{
     (async()=>{
-      if (!firm?.id || !productId) { setSeries([]); setLabels([]); return }
+      if (!firm?.id || !productId) { setChartData([]); return }
       const params = { product_id: productId, group, stat };
       if (partyId) { params.party_id = partyId; params.role = role; }
       const { data } = await api.get('/reports/price-series', { params })
-      setSeries((data||[]).map(r=> r.price==null? null : Number(r.price)))
-      setLabels((data||[]).map(r=> r.period))
+      if (stat === 'band') {
+        const rows = (data||[]).map(r => ({
+          label: r.period,
+          min: r.min == null ? null : Number(r.min),
+          max: r.max == null ? null : Number(r.max),
+          avg: r.avg == null ? null : Number(r.avg),
+          count: Number(r.count || 0),
+        }));
+        // derive gap for stacked area band (max-min)
+        const shaped = rows.map(r => ({ ...r, gap: (r.min!=null && r.max!=null) ? (r.max - r.min) : null }));
+        setChartData(shaped);
+      } else {
+        setChartData((data||[]).map(r => ({ label: r.period, value: r.price==null? null : Number(r.price) })));
+      }
     })()
   },[firm?.id, fy?.id, productId, partyId, role, group, stat])
 
@@ -88,6 +99,7 @@ export default function Analytics() {
               <select value={stat} onChange={e=>setStat(e.target.value)} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}>
                 <option value="last">Last</option>
                 <option value="avg">Average</option>
+                <option value="band">Range (min–max + avg)</option>
               </select>
             </Field>
             <div className="flex items-end">
@@ -99,8 +111,8 @@ export default function Analytics() {
               </button>
             </div>
           </div>
-          {series?.length ? (
-            <PriceChart data={series.map((v,i)=>({ label: labels[i], value: v }))} height={360} />
+          {chartData?.length ? (
+            <PriceChart data={chartData} height={360} variant={stat==='band' ? 'band' : 'single'} />
           ) : (
             <div className="text-white/60 text-sm">Pick a product to see the price trend.</div>
           )}

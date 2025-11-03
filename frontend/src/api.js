@@ -33,3 +33,8 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// Auth helpers
+export async function changePassword(currentPassword, newPassword) {
+  return api.post('/auth/change-password', { currentPassword, newPassword })
+}

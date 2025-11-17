@@ -35,12 +35,24 @@ router.use(requireAuth);
 */
 
 /* -------- LIST -------- */
-router.get("/", async (_req, res) => {
-  const [rows] = await pool.execute(
-    `SELECT id, name, address, gst_no
-       FROM firms
-      ORDER BY name ASC`
-  );
+router.get("/", async (req, res) => {
+  // If user has explicit firm memberships, return only those; otherwise return all (single-user convenience)
+  const userId = req.user?.id;
+  let rows;
+  const [[cnt]] = await pool.execute('SELECT COUNT(*) AS c FROM user_firms WHERE user_id = ?', [userId]);
+  if ((cnt?.c || 0) > 0) {
+    [rows] = await pool.execute(
+      `SELECT f.id, f.name, f.address, f.gst_no
+         FROM firms f
+         JOIN user_firms uf ON uf.firm_id = f.id AND uf.user_id = ?
+        ORDER BY f.name ASC`,
+      [userId]
+    );
+  } else {
+    [rows] = await pool.execute(
+      `SELECT id, name, address, gst_no FROM firms ORDER BY name ASC`
+    );
+  }
   res.json(rows);
 });
 

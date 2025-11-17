@@ -41,39 +41,57 @@ router.post('/', async (req, res) => {
     );
     if (dup) return res.status(409).json({ error: 'Bill already exists for this party and FY.' });
 
-    // If bill_no missing, assign next numeric within firm + FY
-    let billNo = (b.bill_no ?? '').toString().trim();
-    // normalize any provided value to a plain integer string (no leading zeros)
-    if (billNo) {
-      const n = parseInt(billNo, 10);
-      billNo = Number.isFinite(n) && n > 0 ? String(n) : '';
-    }
-    if (!billNo) {
-      // Compute next number in SQL to avoid JS + string issues for big integers
-      const [[row]] = await pool.execute(
-        `SELECT CAST(COALESCE(MAX(CAST(bill_no AS UNSIGNED)), 0) + 1 AS UNSIGNED) AS next_no
-           FROM party_bills WHERE firm_id = ? AND fiscal_year_id = ?`,
-        [req.ctx.firmId, fyId]
-      );
-      billNo = String(row?.next_no || 1);
-    }
+    // Attempt insert with small retry window to avoid duplicate bill_no race
+    const insertOnce = async () => {
+      // If bill_no missing, assign next numeric within firm + FY
+      let billNo = (b.bill_no ?? '').toString().trim();
+      if (billNo) {
+        const n = parseInt(billNo, 10);
+        billNo = Number.isFinite(n) && n > 0 ? String(n) : '';
+      }
+      if (!billNo) {
+        const [[row]] = await pool.execute(
+          `SELECT CAST(COALESCE(MAX(CAST(bill_no AS UNSIGNED)), 0) + 1 AS UNSIGNED) AS next_no
+             FROM party_bills WHERE firm_id = ? AND fiscal_year_id = ?`,
+          [req.ctx.firmId, fyId]
+        );
+        billNo = String(row?.next_no || 1);
+      }
+      const sql = `
+        INSERT INTO party_bills
+          (firm_id, fiscal_year_id, party_id, bill_no, from_date, to_date, bill_date, brokerage)
+        VALUES (?,?,?,?,?,?,?,?)`;
+      const params = [
+        req.ctx.firmId,
+        fyId,
+        b.party_id,
+        billNo,
+        b.from_date,
+        b.to_date,
+        b.bill_date,
+        b.brokerage || 0,
+      ];
+      const [r] = await pool.execute(sql, params);
+      return r.insertId;
+    };
 
-    const sql = `
-      INSERT INTO party_bills
-        (firm_id, fiscal_year_id, party_id, bill_no, from_date, to_date, bill_date, brokerage)
-      VALUES (?,?,?,?,?,?,?,?)`;
-    const params = [
-      req.ctx.firmId,
-      fyId,
-      b.party_id,
-      billNo,
-      b.from_date,
-      b.to_date,
-      b.bill_date,
-      b.brokerage || 0,
-    ];
-    const [r] = await pool.execute(sql, params);
-    res.json({ id: r.insertId });
+    let lastErr;
+    for (let i=0;i<3;i++){
+      try {
+        const id = await insertOnce();
+        return res.json({ id });
+      } catch (e) {
+        // Retry only on duplicate bill number
+        if (e?.code === 'ER_DUP_ENTRY' && String(e.sqlMessage || '').includes('uq_bill_firm_fy_no')) {
+          await new Promise(r=>setTimeout(r, 50 + Math.random()*100));
+          lastErr = e; continue;
+        }
+        throw e;
+      }
+    }
+    if (lastErr) {
+      return res.status(409).json({ error: 'Bill number conflict. Please try again.' });
+    }
   } catch (e) {
     console.error('party-bills POST error:', e);
     res.status(500).json({ error: 'failed to create bill' });
@@ -140,9 +158,21 @@ router.get('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const [r] = await pool.execute('DELETE FROM party_bills WHERE id = ? AND firm_id = ?', [id, req.ctx.firmId]);
-    if (!r.affectedRows) return res.status(404).json({ error: 'not found' });
-    res.json({ ok: true });
+    let lastErr;
+    for (let i=0;i<3;i++){
+      try {
+        const [r] = await pool.execute('DELETE FROM party_bills WHERE id = ? AND firm_id = ?', [id, req.ctx.firmId]);
+        if (!r.affectedRows) return res.status(404).json({ error: 'not found' });
+        return res.json({ ok: true });
+      } catch (e) {
+        const msg = String(e?.code || '');
+        if (msg === 'ER_LOCK_WAIT_TIMEOUT' || msg === 'ER_LOCK_DEADLOCK' || String(e?.sqlState) === '40001') {
+          lastErr = e; await new Promise(r=>setTimeout(r, 80 + Math.random()*120)); continue;
+        }
+        throw e;
+      }
+    }
+    if (lastErr) return res.status(409).json({ error: 'Delete conflicted. Please retry.' });
   } catch (e) {
     console.error('party-bills DELETE error:', e);
     res.status(500).json({ error: 'failed to delete bill' });

@@ -18,6 +18,7 @@
   "type": "commonjs",
   "description": "",
   "dependencies": {
+    "compression": "^1.7.4",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",

@@ -1,12 +1,12 @@
 import axios from 'axios'
-export const api = axios.create({ baseURL: 'http://localhost:4000' })
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+export const api = axios.create({ baseURL })
 
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('token')
-  const firmId = localStorage.getItem('firmId')
   const fyId = localStorage.getItem('fyId')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
-  if (firmId) cfg.headers['X-Firm-Id'] = firmId
+  // Firm is derived from JWT server-side for tenant isolation; only send FY filter
   if (fyId) cfg.headers['X-Fy-Id'] = fyId
   return cfg
 })
@@ -37,4 +37,8 @@ api.interceptors.response.use(
 // Auth helpers
 export async function changePassword(currentPassword, newPassword) {
   return api.post('/auth/change-password', { currentPassword, newPassword })
+}
+
+export async function switchFirm(firmId) {
+  return api.post('/auth/switch-firm', { firmId })
 }

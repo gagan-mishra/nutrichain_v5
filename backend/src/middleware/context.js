@@ -1,7 +1,16 @@
 function requireContext(req, res, next) {
-  const firmId = Number(req.header('X-Firm-Id'));
+  // Enforce firm scoping: default to the authenticated user's firm; ignore spoofed headers
+  const userFirmId = req.user?.firmId ? Number(req.user.firmId) : undefined;
+  // Allow header to pick FY, but firmId must match the user
+  const headerFirmId = req.header('X-Firm-Id') ? Number(req.header('X-Firm-Id')) : undefined;
   const fyId = req.header('X-Fy-Id') ? Number(req.header('X-Fy-Id')) : undefined;
-  if (!firmId) return res.status(400).json({ error: 'Missing X-Firm-Id header' });
+
+  const firmId = userFirmId || headerFirmId;
+  if (!firmId) return res.status(400).json({ error: 'Missing firm context' });
+  if (headerFirmId && userFirmId && headerFirmId !== userFirmId) {
+    return res.status(403).json({ error: 'Firm mismatch' });
+  }
+
   req.ctx = { firmId, fyId };
   next();
 }

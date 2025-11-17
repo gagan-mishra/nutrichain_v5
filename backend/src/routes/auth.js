@@ -40,9 +40,27 @@ router.post('/seed-admin', async (req, res) => {
 });
 
 // login
+// Simple in-memory rate limit for login (per IP and per username)
+const ipAttempts = new Map();
+const userAttempts = new Map();
+const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_PER_IP = 30;
+const MAX_PER_USER = 8;
+
+function pushAttempt(map, key){
+  const now = Date.now();
+  const arr = (map.get(key) || []).filter(t => now - t < WINDOW_MS);
+  arr.push(now);
+  map.set(key, arr);
+  return arr.length;
+}
+
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    if (pushAttempt(ipAttempts, ip) > MAX_PER_IP) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+    if (username && pushAttempt(userAttempts, String(username).toLowerCase()) > MAX_PER_USER) return res.status(429).json({ error: 'Too many attempts for this user. Try again later.' });
     const [rows] = await pool.execute('SELECT * FROM users WHERE username = ? LIMIT 1', [username]);
     const user = rows[0];
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
@@ -77,6 +95,31 @@ router.post('/change-password', requireAuth, async (req, res) => {
     const hash = await bcrypt.hash(newPassword, 12);
     await pool.execute('UPDATE users SET password_hash = ? WHERE id = ?', [hash, user.id]);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Securely switch firm: verifies access then returns a fresh token with that firmId
+router.post('/switch-firm', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetFirmId = Number(req.body?.firmId);
+    if (!targetFirmId) return res.status(400).json({ error: 'firmId required' });
+
+    // If user_firms table has rows for this user, enforce membership. If none, allow all (single-user-on-all-firms case).
+    const [[cntAll]] = await pool.execute('SELECT COUNT(*) AS c FROM user_firms WHERE user_id = ?', [userId]);
+    if ((cntAll?.c || 0) > 0) {
+      const [[row]] = await pool.execute('SELECT 1 FROM user_firms WHERE user_id = ? AND firm_id = ? LIMIT 1', [userId, targetFirmId]);
+      if (!row) return res.status(403).json({ error: 'Not allowed for this firm' });
+    }
+
+    // Confirm firm exists
+    const [[firm]] = await pool.execute('SELECT id FROM firms WHERE id = ? LIMIT 1', [targetFirmId]);
+    if (!firm) return res.status(404).json({ error: 'Firm not found' });
+
+    const token = jwt.sign({ id: req.user.id, username: req.user.username, firmId: targetFirmId }, process.env.JWT_SECRET, { expiresIn: '12h' });
+    res.json({ token, user: { id: req.user.id, username: req.user.username, firmId: targetFirmId } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

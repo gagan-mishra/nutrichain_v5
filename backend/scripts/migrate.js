@@ -55,7 +55,8 @@ async function run(){
       await conn.beginTransaction();
       try {
         for (const s of stmts){
-          try { await conn.execute(s); }
+          // Use raw query to support statements like PREPARE/EXECUTE/DEALLOCATE and SET
+          try { await conn.query(s); }
           catch (e) { if (isBenign(e)) console.log('  skipped:', e.code); else throw e; }
         }
         await conn.execute('INSERT INTO app_migrations (filename) VALUES (?)', [file]);

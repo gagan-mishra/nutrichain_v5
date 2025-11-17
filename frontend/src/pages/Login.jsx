@@ -44,6 +44,10 @@ export default function Login() {
       } catch (err) {
         console.warn("Could not prefetch firm/fy:", err);
       }
+      // enforce firm from token payload for tenant isolation
+      if (data?.user?.firmId != null) {
+        localStorage.setItem("firmId", String(data.user.firmId));
+      }
 
       // now go to dashboard / order confirm
       nav("/sales/order-confirm", { replace: true });

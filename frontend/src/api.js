@@ -1,5 +1,6 @@
 import axios from 'axios'
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+// Prefer VITE_API_BASE; fall back to legacy VITE_API_URL; default to localhost in dev
+const baseURL = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || 'http://localhost:4000'
 export const api = axios.create({ baseURL })
 
 api.interceptors.request.use(cfg => {

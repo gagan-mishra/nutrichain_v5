@@ -1,6 +1,9 @@
 import axios from 'axios'
-// Prefer VITE_API_BASE; fall back to legacy VITE_API_URL; default to localhost in dev
-const baseURL = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || 'http://localhost:4000'
+// Prefer env; otherwise use '/api' behind Vercel rewrite in prod, and localhost in dev
+const baseURL =
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.MODE === 'development' ? 'http://localhost:4000' : '/api')
 export const api = axios.create({ baseURL })
 
 api.interceptors.request.use(cfg => {

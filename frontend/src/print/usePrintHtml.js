@@ -3,7 +3,25 @@ import { useCallback } from "react";
 
 export function usePrintHtml() {
   const open = useCallback((html) => {
-    // create a hidden iframe and print from there (reliable on Chrome/Edge)
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent || "");
+
+    if (isMobile) {
+      // On mobile browsers, printing from a hidden iframe often prints the parent page.
+      // Open a new tab, write the print HTML, and invoke print there.
+      const win = window.open("", "_blank");
+      if (!win) return; // popup blocked
+      win.document.open();
+      win.document.write(html || "<!doctype html><html><body></body></html>");
+      win.document.close();
+      // Give the browser a moment to render before printing
+      setTimeout(() => {
+        win.focus();
+        win.print();
+      }, 100);
+      return;
+    }
+
+    // Desktop: create a hidden iframe and print from there (reliable on Chrome/Edge)
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.right = "0";

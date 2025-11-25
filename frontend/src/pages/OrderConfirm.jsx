@@ -530,6 +530,35 @@ export default function OrderConfirm() {
     } else if (type === "print") {
       (async () => {
         try {
+          const isMobile = /android|iphone|ipad|ipod/i.test(
+            navigator.userAgent || ""
+          );
+
+          if (isMobile) {
+            // Prefer server-generated PDF on mobile for reliable printing
+            const res = await api.get(`/contracts/${rec.id}/print`, {
+              responseType: "blob",
+            });
+            const blob = new Blob([res.data], {
+              type: res.headers["content-type"] || "application/pdf",
+            });
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url, "_blank");
+            if (win) {
+              const revoke = () => {
+                try { URL.revokeObjectURL(url); } catch (_) {}
+                win.removeEventListener("load", revoke);
+              };
+              win.addEventListener("load", revoke);
+            } else {
+              // Popup blocked
+              try { URL.revokeObjectURL(url); } catch (_) {}
+              toast.error("Please allow popups to view the PDF");
+            }
+            return;
+          }
+
+          // Desktop: continue using print-styled HTML
           const { data } = await api.get(`/contracts/${rec.id}/print`);
           const html = buildContractPrintHtml(data);
           openPrint(html);

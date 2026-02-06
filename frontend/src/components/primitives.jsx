@@ -10,14 +10,14 @@ export function Field({ label, help, children, full }) {
     </div>
   )
 }
-export function Input({ type="text", value, onChange, placeholder }) {
+export function Input({ type="text", value, onChange, placeholder, name, autoComplete, id, ...rest }) {
   return (
-    <input type={type} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`} placeholder={placeholder} value={value ?? ""} onChange={e=>onChange(e.target.value)} />
+    <input type={type} id={id} name={name} autoComplete={autoComplete} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`} placeholder={placeholder} value={value ?? ""} onChange={e=>onChange(e.target.value)} {...rest} />
   )
 }
-export function TextArea({ value, onChange, rows=3, placeholder }) {
+export function TextArea({ value, onChange, rows=3, placeholder, name, autoComplete, id, ...rest }) {
   return (
-    <textarea className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`} rows={rows} placeholder={placeholder} value={value ?? ""} onChange={e=>onChange(e.target.value)} />
+    <textarea id={id} name={name} autoComplete={autoComplete} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`} rows={rows} placeholder={placeholder} value={value ?? ""} onChange={e=>onChange(e.target.value)} {...rest} />
   )
 }
 export function Tabs({ tabs, value, onChange }) {

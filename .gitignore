@@ -5,6 +5,7 @@ backend/.env
 .env.*.local
 backend/.env*
 frontend/.env*
+backend/.puppeteer/
 
 # Dependencies
 node_modules/

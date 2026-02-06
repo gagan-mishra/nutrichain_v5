@@ -77,6 +77,8 @@ function OrderForm({
                 value={draft.contract_no}
                 onChange={(v) => setDraft({ ...draft, contract_no: v })}
                 placeholder="Auto or manual"
+                name="contract_no"
+                autoComplete="on"
               />
             </Field>
             <Field label="Order Date">
@@ -84,6 +86,8 @@ function OrderForm({
                 type="date"
                 value={draft.order_date}
                 onChange={(v) => setDraft({ ...draft, order_date: v })}
+                name="order_date"
+                autoComplete="on"
               />
             </Field>
             <Field label="Seller">
@@ -99,6 +103,8 @@ function OrderForm({
                 type="number"
                 value={draft.seller_brokerage}
                 onChange={(v) => setDraft({ ...draft, seller_brokerage: v })}
+                name="seller_brokerage"
+                autoComplete="on"
               />
             </Field>
             <Field label="Buyer">
@@ -114,6 +120,8 @@ function OrderForm({
                 type="number"
                 value={draft.buyer_brokerage}
                 onChange={(v) => setDraft({ ...draft, buyer_brokerage: v })}
+                name="buyer_brokerage"
+                autoComplete="on"
               />
             </Field>
           </div>
@@ -129,6 +137,8 @@ function OrderForm({
                 value={draft.delivery_station}
                 onChange={(v) => setDraft({ ...draft, delivery_station: v })}
                 placeholder="Station/Location"
+                name="delivery_station"
+                autoComplete="on"
               />
             </Field>
             <Field label="Delivery Schedule">
@@ -136,6 +146,8 @@ function OrderForm({
                 value={draft.delivery_schedule}
                 onChange={(v) => setDraft({ ...draft, delivery_schedule: v })}
                 placeholder="e.g., within 7 days"
+                name="delivery_schedule"
+                autoComplete="on"
               />
             </Field>
             <Field label="Status">
@@ -143,6 +155,8 @@ function OrderForm({
                 value={draft.status}
                 onChange={(v) => setDraft({ ...draft, status: v })}
                 placeholder="Open/Confirmed/Pending"
+                name="status"
+                autoComplete="on"
               />
             </Field>
             <Field label="Payment Criteria">
@@ -150,6 +164,8 @@ function OrderForm({
                 value={draft.payment_criteria}
                 onChange={(v) => setDraft({ ...draft, payment_criteria: v })}
                 placeholder="e.g., 30% advance"
+                name="payment_criteria"
+                autoComplete="on"
               />
             </Field>
             <Field label="Terms" full>
@@ -158,6 +174,8 @@ function OrderForm({
                 onChange={(v) => setDraft({ ...draft, terms: v })}
                 rows={4}
                 placeholder="Key contractual terms"
+                name="terms"
+                autoComplete="on"
               />
             </Field>
           </div>
@@ -188,6 +206,8 @@ function OrderForm({
                 type="number"
                 value={draft.min_qty}
                 onChange={(v) => setDraft({ ...draft, min_qty: v })}
+                name="min_qty"
+                autoComplete="on"
               />
             </Field>
             <Field label="Max Qty">
@@ -195,6 +215,8 @@ function OrderForm({
                 type="number"
                 value={draft.max_qty}
                 onChange={(v) => setDraft({ ...draft, max_qty: v })}
+                name="max_qty"
+                autoComplete="on"
               />
             </Field>
             <Field label="Unit of Qty">
@@ -202,6 +224,8 @@ function OrderForm({
                 value={draft.unit}
                 onChange={(v) => setDraft({ ...draft, unit: v })}
                 placeholder="kg/mt/pcs"
+                name="unit"
+                autoComplete="on"
               />
             </Field>
             <Field label="Price (per unit)" full>
@@ -210,6 +234,8 @@ function OrderForm({
                 value={draft.price}
                 onChange={(v) => setDraft({ ...draft, price: v })}
                 placeholder="0.00"
+                name="price"
+                autoComplete="on"
               />
             </Field>
           </div>
@@ -646,22 +672,26 @@ export default function OrderConfirm() {
         {/* ADD */}
         {tab === "add" && (
           <>
-            <OrderForm
-              draft={draft}
-              setDraft={setDraft}
-              sellerOptions={sellerOptions}
-              buyerOptions={buyerOptions}
-              productOptions={productOptions}
-              isEditing={false}
-            />
+            <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
+              <OrderForm
+                draft={draft}
+                setDraft={setDraft}
+                sellerOptions={sellerOptions}
+                buyerOptions={buyerOptions}
+                productOptions={productOptions}
+                isEditing={false}
+              />
+            </form>
             <div className="mt-4 mb-24 flex flex-wrap items-center justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setDraft({ status: "Open" })}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5 ${glass}`}
               >
                 <X size={16} /> Reset
               </button>
               <button
+                type="button"
                 onClick={() => createOrUpdate(draft)}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/20 ${glass} bg-white/10`}
               >
@@ -782,14 +812,16 @@ export default function OrderConfirm() {
           </>
         }
       >
-        <OrderForm
-          draft={draft}
-          setDraft={setDraft}
-          sellerOptions={sellerOptions}
-          buyerOptions={buyerOptions}
-          productOptions={productOptions}
-          isEditing
-        />
+        <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
+          <OrderForm
+            draft={draft}
+            setDraft={setDraft}
+            sellerOptions={sellerOptions}
+            buyerOptions={buyerOptions}
+            productOptions={productOptions}
+            isEditing
+          />
+        </form>
       </EditOverlay>
     </AppShell>
   );

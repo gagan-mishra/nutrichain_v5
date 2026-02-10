@@ -373,15 +373,16 @@ export function buildContractPrintHtml(input) {
 <head>
 <meta charset="utf-8" />
 <title>Contract ${esc(c.contract_no)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root { --ink:#121212; --muted:#606368; --line:#d7d8da; --soft:#f7f8fa; }
   * { box-sizing:border-box }
   html, body { margin:0; padding:0; background:#fff }
-  body { font:13px/1.37 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color:var(--ink) }
+  body { font:13px/1.37 "Noto Sans","Noto Sans Devanagari",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:var(--ink) }
   .page { width:210mm; min-height:297mm; padding:16mm 16mm 18mm; margin:0 auto }
   .center { text-align:center }
   .muted { color:var(--muted) }
-  .ganesh { font-weight:700; letter-spacing:.08em }
+  .ganesh { font-weight:700; letter-spacing:.08em; font-family:"Noto Sans Devanagari","Noto Sans",sans-serif }
   .firm { font-size:18px; font-weight:800; margin:10px 0 2px }
   .addr { font-size:12px; color:var(--muted) }
   .rule { height:1px; background:var(--line); margin:8px 0 14px }

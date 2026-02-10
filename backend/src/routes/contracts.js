@@ -362,11 +362,11 @@
 
 // backend/src/routes/contracts.js
 const express = require("express");
-const nodemailer = require("nodemailer");
 const puppeteer = require("puppeteer");
 const { pool } = require("../lib/db");
 const { requireAuth } = require("../middleware/auth");
 const { requireContext } = require("../middleware/context");
+const { sendMail } = require("../lib/mailer");
 // Make sure this backend template exists and exports buildContractPrintHtml
 const { buildContractPrintHtml } = require("../lib/contract-template");
 
@@ -401,35 +401,6 @@ function chunk(arr, size) {
   const out = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
-}
-
-function createTransport() {
-  if (process.env.SMTP_SERVICE === "gmail") {
-    // Gmail App Password required
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      throw new Error("SMTP_USER / SMTP_PASS missing for Gmail transport");
-    }
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  }
-  // Generic SMTP
-  if (!process.env.SMTP_HOST) {
-    throw new Error("SMTP_HOST missing for generic SMTP transport");
-  }
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: String(process.env.SMTP_SECURE || "false") === "true",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
 }
 
 /* ---------------- Create ---------------- */
@@ -671,6 +642,9 @@ router.post("/:id/mail", async (req, res) => {
   } finally {
     await browser.close();
   }
+  if (!pdf || pdf.length === 0) {
+    return res.status(500).json({ error: "Failed to generate PDF attachment" });
+  }
 
   // Subject + PDF name
   const firmName = row.firm_name || "Your Firm";
@@ -691,7 +665,6 @@ router.post("/:id/mail", async (req, res) => {
   ].join("\n");
 
   // Send mail (chunk recipients for safety)
-  const transporter = createTransport();
   const toChunks = chunk(sellerEmails, 90); // Gmail safe margin
   const bccChunks = chunk(buyerEmails, 90);
   const batches = Math.max(toChunks.length || 1, bccChunks.length || 1);
@@ -703,8 +676,7 @@ router.post("/:id/mail", async (req, res) => {
 
     if (!to && !bcc) continue;
 
-    const info = await transporter.sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    const info = await sendMail({
       to: to || undefined,
       bcc: bcc || undefined,
       subject,
@@ -718,7 +690,7 @@ router.post("/:id/mail", async (req, res) => {
         },
       ],
     });
-    results.push({ batch: i + 1, to, bcc, messageId: info.messageId });
+    results.push({ batch: i + 1, to, bcc, messageId: info?.messageId || null });
   }
 
   // Optional: mark mailed_at (remove if you don't have this column)

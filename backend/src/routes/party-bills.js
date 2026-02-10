@@ -2,9 +2,9 @@ const express = require('express');
 const { pool } = require('../lib/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireContext } = require('../middleware/context');
-const nodemailer = require('nodemailer');
 const puppeteer = require('puppeteer');
 const { buildPartyBillPrintHtml } = require('../lib/party-bill-template');
+const { sendMail } = require('../lib/mailer');
 
 const router = express.Router();
 router.use(requireAuth, requireContext);
@@ -458,21 +458,6 @@ function toDateStr(v) {
 }
 
 // --------------- Mail bill as PDF ---------------
-function createTransport() {
-  if (process.env.SMTP_SERVICE === 'gmail') {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-    });
-  }
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: String(process.env.SMTP_SECURE || 'false') === 'true',
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-}
-
 router.post('/:id/mail', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -563,18 +548,19 @@ router.post('/:id/mail', async (req, res) => {
       await page.setContent(html, { waitUntil: 'networkidle0' });
       pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top:'10mm', right:'10mm', bottom:'10mm', left:'10mm' } });
     } finally { await browser.close(); }
+    if (!pdf || pdf.length === 0) {
+      return res.status(500).json({ error: 'Failed to generate PDF attachment' });
+    }
 
     // Recipient emails for the party
     const [emailRows] = await pool.execute('SELECT email FROM party_emails WHERE party_id = ?', [bill.party_id]);
     const recipients = emailRows.map(e=>e.email).filter(Boolean);
     if (!recipients.length) return res.status(400).json({ error: 'No recipient emails for this party.' });
 
-    const transporter = createTransport();
     const subject = `Party Bill: ${bill.firm_name}. ${bill.party_name}. FY ${from.slice(0,4)}-${to.slice(2,4)}`;
     const text = [`Dear Sir/Madam,`, ``, `Please find attached the brokerage statement (Bill ${bill.bill_no}).`, `This is a system generated document.`, ``, `Regards,`, `${bill.firm_name}`].join('\n');
-    const info = await transporter.sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
-      to: recipients.join(', '),
+    const info = await sendMail({
+      to: recipients,
       subject,
       text,
       html: text.replace(/\n/g,'<br/>'),
@@ -582,7 +568,7 @@ router.post('/:id/mail', async (req, res) => {
     });
 
     try { await pool.execute('UPDATE party_bills SET mailed_at = NOW() WHERE id = ? AND firm_id = ?', [id, firmId]); } catch(_){ }
-    return res.json({ ok:true, messageId: info.messageId, mailed_at: new Date().toISOString(), to: recipients.length });
+    return res.json({ ok:true, messageId: info?.messageId || null, mailed_at: new Date().toISOString(), to: recipients.length });
   } catch (e) {
     console.error('party-bills MAIL error:', e);
     res.status(500).json({ error: 'failed to send mail' });

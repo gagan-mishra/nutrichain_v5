@@ -102,7 +102,7 @@ export function AppShell({
   async function onPickFirm(f) {
     try {
       const { data } = await switchFirm(f.id);
-      // Cookie is set automatically; update user info in localStorage
+      if (data?.token) localStorage.setItem('token', data.token);
       if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('firmId', String(f.id));
       setFirm(f);

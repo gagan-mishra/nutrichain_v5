@@ -92,7 +92,7 @@ router.post('/login', async (req, res) => {
 
     const token = signToken({ id: user.id, username: user.username, firmId: user.firm_id });
     setTokenCookie(res, token);
-    res.json({ user: { id: user.id, username: user.username, firmId: user.firm_id } });
+    res.json({ token, user: { id: user.id, username: user.username, firmId: user.firm_id } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -152,7 +152,7 @@ router.post('/switch-firm', requireAuth, async (req, res) => {
 
     const token = signToken({ id: req.user.id, username: req.user.username, firmId: targetFirmId });
     setTokenCookie(res, token);
-    res.json({ user: { id: req.user.id, username: req.user.username, firmId: targetFirmId } });
+    res.json({ token, user: { id: req.user.id, username: req.user.username, firmId: targetFirmId } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

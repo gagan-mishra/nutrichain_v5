@@ -29,7 +29,8 @@ export default function Login() {
     setErr("");
     try {
       const { data } = await api.post("/auth/login", { username, password });
-      // Token is in httpOnly cookie; store user info for client-side route guard
+      // Store token for Bearer auth (production proxy) + user info for route guard
+      if (data.token) localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
       // fetch firms + fiscal years so the first page has context

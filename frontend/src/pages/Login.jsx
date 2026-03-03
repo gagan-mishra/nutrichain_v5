@@ -29,9 +29,10 @@ export default function Login() {
     setErr("");
     try {
       const { data } = await api.post("/auth/login", { username, password });
-      localStorage.setItem("token", data.token);
+      // Token is in httpOnly cookie; store user info for client-side route guard
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-      // 🔑 fetch firms + fiscal years so the first page has context
+      // fetch firms + fiscal years so the first page has context
       try {
         const [firmsRes, fysRes] = await Promise.all([
           api.get("/firms"),

@@ -12,18 +12,23 @@ router.use(requireAuth);
  * Always returns is_active so the UI can render status.
  */
 router.get('/', async (req, res) => {
-  const activeOnly = String(req.query.active || '') === '1';
-  const all = String(req.query.all || '1') === '1' || !activeOnly;
+  try {
+    const activeOnly = String(req.query.active || '') === '1';
+    const all = String(req.query.all || '1') === '1' || !activeOnly;
 
-  let sql = `SELECT id, name, unit, hsn_code, is_active FROM products `;
-  const params = [];
-  if (activeOnly && !all) {
-    sql += `WHERE is_active = 1 `;
+    let sql = `SELECT id, name, unit, hsn_code, is_active FROM products `;
+    const params = [];
+    if (activeOnly && !all) {
+      sql += `WHERE is_active = 1 `;
+    }
+    sql += `ORDER BY name ASC`;
+
+    const [rows] = await pool.execute(sql, params);
+    res.json(rows);
+  } catch (e) {
+    console.error('products GET error:', e);
+    res.status(500).json({ error: 'Failed to fetch products' });
   }
-  sql += `ORDER BY name ASC`;
-
-  const [rows] = await pool.execute(sql, params);
-  res.json(rows);
 });
 
 /**
@@ -31,16 +36,21 @@ router.get('/', async (req, res) => {
  * Creates a new product. Defaults to is_active = 1 unless provided.
  */
 router.post('/', async (req, res) => {
-  const p = req.body || {};
-  if (!p.name) return res.status(400).json({ error: 'name required' });
+  try {
+    const p = req.body || {};
+    if (!p.name) return res.status(400).json({ error: 'name required' });
 
-  const isActive = p.is_active == null ? 1 : (p.is_active ? 1 : 0);
+    const isActive = p.is_active == null ? 1 : (p.is_active ? 1 : 0);
 
-  const [r] = await pool.execute(
-    `INSERT INTO products (name, unit, hsn_code, is_active) VALUES (?,?,?,?)`,
-    [p.name, p.unit || null, p.hsn_code || null, isActive]
-  );
-  res.json({ id: r.insertId });
+    const [r] = await pool.execute(
+      `INSERT INTO products (name, unit, hsn_code, is_active) VALUES (?,?,?,?)`,
+      [p.name, p.unit || null, p.hsn_code || null, isActive]
+    );
+    res.json({ id: r.insertId });
+  } catch (e) {
+    console.error('products POST error:', e);
+    res.status(500).json({ error: 'Failed to create product' });
+  }
 });
 
 /**
@@ -48,17 +58,22 @@ router.post('/', async (req, res) => {
  * Updates product including is_active.
  */
 router.put('/:id', async (req, res) => {
-  const id = Number(req.params.id);
-  const p = req.body || {};
-  if (!p.name) return res.status(400).json({ error: 'name required' });
+  try {
+    const id = Number(req.params.id);
+    const p = req.body || {};
+    if (!p.name) return res.status(400).json({ error: 'name required' });
 
-  await pool.execute(
-    `UPDATE products
-       SET name = ?, unit = ?, hsn_code = ?, is_active = ?
-     WHERE id = ?`,
-    [p.name, p.unit || null, p.hsn_code || null, p.is_active ? 1 : 0, id]
-  );
-  res.json({ ok: true });
+    await pool.execute(
+      `UPDATE products
+         SET name = ?, unit = ?, hsn_code = ?, is_active = ?
+       WHERE id = ?`,
+      [p.name, p.unit || null, p.hsn_code || null, p.is_active ? 1 : 0, id]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('products PUT error:', e);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
 });
 
 /**
@@ -66,15 +81,25 @@ router.put('/:id', async (req, res) => {
  * PATCH /products/:id/deactivate
  */
 router.patch('/:id/activate', async (req, res) => {
-  const id = Number(req.params.id);
-  await pool.execute(`UPDATE products SET is_active = 1 WHERE id = ?`, [id]);
-  res.json({ ok: true });
+  try {
+    const id = Number(req.params.id);
+    await pool.execute(`UPDATE products SET is_active = 1 WHERE id = ?`, [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('products ACTIVATE error:', e);
+    res.status(500).json({ error: 'Failed to activate product' });
+  }
 });
 
 router.patch('/:id/deactivate', async (req, res) => {
-  const id = Number(req.params.id);
-  await pool.execute(`UPDATE products SET is_active = 0 WHERE id = ?`, [id]);
-  res.json({ ok: true });
+  try {
+    const id = Number(req.params.id);
+    await pool.execute(`UPDATE products SET is_active = 0 WHERE id = ?`, [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('products DEACTIVATE error:', e);
+    res.status(500).json({ error: 'Failed to deactivate product' });
+  }
 });
 
 /**

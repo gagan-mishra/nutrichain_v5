@@ -1,10 +1,33 @@
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../lib/db');
 const { requireAuth } = require('../middleware/auth');
+const tokenBlacklist = require('../lib/token-blacklist');
 
 const router = express.Router();
+
+function isMissingUserFirmsTable(err) {
+  return err?.code === 'ER_NO_SUCH_TABLE' && String(err?.message || '').includes('user_firms');
+}
+
+/* ------------ Cookie / token helpers ------------ */
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 12 * 60 * 60 * 1000, // 12h
+  path: '/',
+};
+
+function signToken(payload) {
+  return jwt.sign({ ...payload, jti: crypto.randomUUID() }, process.env.JWT_SECRET, { expiresIn: '12h' });
+}
+
+function setTokenCookie(res, token) {
+  res.cookie('token', token, COOKIE_OPTS);
+}
 
 // Secure, one-time bootstrap endpoint to create the first admin user.
 // Requirements:
@@ -67,14 +90,13 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(400).json({ error: 'Invalid credentials' });
 
-    const token = jwt.sign({ id: user.id, username: user.username, firmId: user.firm_id }, process.env.JWT_SECRET, { expiresIn: '12h' });
-    res.json({ token, user: { id: user.id, username: user.username, firmId: user.firm_id } });
+    const token = signToken({ id: user.id, username: user.username, firmId: user.firm_id });
+    setTokenCookie(res, token);
+    res.json({ user: { id: user.id, username: user.username, firmId: user.firm_id } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
-
-module.exports = router;
 
 // Change password (authenticated)
 // body: { currentPassword, newPassword }
@@ -108,9 +130,19 @@ router.post('/switch-firm', requireAuth, async (req, res) => {
     if (!targetFirmId) return res.status(400).json({ error: 'firmId required' });
 
     // If user_firms table has rows for this user, enforce membership. If none, allow all (single-user-on-all-firms case).
-    const [[cntAll]] = await pool.execute('SELECT COUNT(*) AS c FROM user_firms WHERE user_id = ?', [userId]);
-    if ((cntAll?.c || 0) > 0) {
-      const [[row]] = await pool.execute('SELECT 1 FROM user_firms WHERE user_id = ? AND firm_id = ? LIMIT 1', [userId, targetFirmId]);
+    let useUserFirmScope = false;
+    try {
+      const [[cntAll]] = await pool.execute('SELECT COUNT(*) AS c FROM user_firms WHERE user_id = ?', [userId]);
+      useUserFirmScope = (cntAll?.c || 0) > 0;
+    } catch (e) {
+      if (!isMissingUserFirmsTable(e)) throw e;
+      console.warn('user_firms table missing; switch-firm allows all existing firms');
+    }
+    if (useUserFirmScope) {
+      const [[row]] = await pool.execute(
+        'SELECT 1 FROM user_firms WHERE user_id = ? AND firm_id = ? LIMIT 1',
+        [userId, targetFirmId]
+      );
       if (!row) return res.status(403).json({ error: 'Not allowed for this firm' });
     }
 
@@ -118,9 +150,24 @@ router.post('/switch-firm', requireAuth, async (req, res) => {
     const [[firm]] = await pool.execute('SELECT id FROM firms WHERE id = ? LIMIT 1', [targetFirmId]);
     if (!firm) return res.status(404).json({ error: 'Firm not found' });
 
-    const token = jwt.sign({ id: req.user.id, username: req.user.username, firmId: targetFirmId }, process.env.JWT_SECRET, { expiresIn: '12h' });
-    res.json({ token, user: { id: req.user.id, username: req.user.username, firmId: targetFirmId } });
+    const token = signToken({ id: req.user.id, username: req.user.username, firmId: targetFirmId });
+    setTokenCookie(res, token);
+    res.json({ user: { id: req.user.id, username: req.user.username, firmId: targetFirmId } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
+
+// Logout: clear cookie + blacklist current token
+router.post('/logout', requireAuth, (req, res) => {
+  tokenBlacklist.add(req.user);
+  res.clearCookie('token', { httpOnly: true, sameSite: 'lax', path: '/' });
+  res.json({ ok: true });
+});
+
+// Check current session
+router.get('/me', requireAuth, (req, res) => {
+  res.json({ user: { id: req.user.id, username: req.user.username, firmId: req.user.firmId } });
+});
+
+module.exports = router;

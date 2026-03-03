@@ -9,6 +9,8 @@ const { sendMail } = require('../lib/mailer');
 const router = express.Router();
 router.use(requireAuth, requireContext);
 
+const DEFAULT_BROKERAGE = Number(process.env.DEFAULT_BROKERAGE_RATE) || 30;
+
 // CREATE
 router.post('/', async (req, res) => {
   try {
@@ -231,7 +233,7 @@ router.get('/compute', async (req, res) => {
       rate = overrideRate; // bill-level override (e.g., 30)
     } else {
       rate = role === 'SELLER' ? (r.seller_brokerage ?? 0) : (r.buyer_brokerage ?? 0);
-      if (!rate) rate = 30; // default fallback
+      if (!rate) rate = DEFAULT_BROKERAGE;
     }
     const amount = Number(qty) * Number(rate);
     return {
@@ -417,7 +419,7 @@ router.get('/:id/summary', async (req, res) => {
     for (const r of rows) {
       const role = r.seller_id === bill.party_id ? 'SELLER' : 'BUYER';
       const qty = (r.max_qty ?? r.min_qty ?? 0) || 0;
-      const rate = overrideRate != null ? overrideRate : (role === 'SELLER' ? (r.seller_brokerage || 30) : (r.buyer_brokerage || 30));
+      const rate = overrideRate != null ? overrideRate : (role === 'SELLER' ? (r.seller_brokerage || DEFAULT_BROKERAGE) : (r.buyer_brokerage || DEFAULT_BROKERAGE));
       subtotal += Number(qty) * Number(rate);
     }
     let cgst = 0, sgst = 0, igst = 0;
@@ -499,7 +501,7 @@ router.post('/:id/mail', async (req, res) => {
       const role = r.seller_id === bill.party_id ? 'SELLER' : 'BUYER';
       const otherParty = role === 'SELLER' ? r.buyer_name : r.seller_name;
       const qty = (r.max_qty ?? r.min_qty ?? 0);
-      const rate = overrideRate || (role === 'SELLER' ? (r.seller_brokerage || 30) : (r.buyer_brokerage || 30));
+      const rate = overrideRate || (role === 'SELLER' ? (r.seller_brokerage || DEFAULT_BROKERAGE) : (r.buyer_brokerage || DEFAULT_BROKERAGE));
       const amount = Number(qty) * Number(rate);
       return {
         sr: idx + 1,

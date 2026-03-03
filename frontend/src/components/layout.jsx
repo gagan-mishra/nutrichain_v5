@@ -20,7 +20,7 @@ import {
 import { glass } from "./primitives";
 import ChangePasswordDialog from "./change-password-dialog";
 import { FirmPill, FyPill, CalendarBadge } from "./pickers";
-import { switchFirm } from "../api";
+import { switchFirm, logout } from "../api";
 
 /* ------------ Collapsible section in the sidebar ------------ */
 const Section = ({ label, icon: Icon, items, isOpen, onToggle, activeKey, onSelect }) => (
@@ -102,12 +102,10 @@ export function AppShell({
   async function onPickFirm(f) {
     try {
       const { data } = await switchFirm(f.id);
-      if (data?.token) localStorage.setItem('token', data.token);
+      // Cookie is set automatically; update user info in localStorage
+      if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('firmId', String(f.id));
       setFirm(f);
-      // optional: clear FY to let user pick anew (comment out if not desired)
-      // localStorage.removeItem('fyId');
-      // window.location.reload();
     } catch (e) {
       console.error(e);
       alert('Not allowed to switch to this firm');
@@ -279,10 +277,8 @@ export function AppShell({
 
               {/* Logout button */}
               <button
-                onClick={() => {
-                  localStorage.removeItem("token");
-                  localStorage.removeItem("firmId");
-                  localStorage.removeItem("fyId");
+                onClick={async () => {
+                  await logout();
                   nav("/login", { replace: true });
                 }}
                 className="rounded-lg px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 border border-white/10"
@@ -377,10 +373,8 @@ export function AppShell({
                 Change Password
               </button>
               <button
-                onClick={() => {
-                  localStorage.removeItem("token");
-                  localStorage.removeItem("firmId");
-                  localStorage.removeItem("fyId");
+                onClick={async () => {
+                  await logout();
                   setMobileOpen(false);
                   nav("/login", { replace: true });
                 }}

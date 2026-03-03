@@ -51,7 +51,7 @@ function createSmtpTransport() {
   });
 }
 
-async function sendWithResend({ to, bcc, subject, text, html, attachments, replyTo }) {
+async function sendWithResend({ to, cc, bcc, subject, text, html, attachments, replyTo }) {
   if (typeof fetch !== 'function') {
     throw new Error('Global fetch is not available. Use Node 18+ or add a fetch polyfill.');
   }
@@ -67,6 +67,8 @@ async function sendWithResend({ to, bcc, subject, text, html, attachments, reply
     text,
     html,
   };
+  const ccList = normalizeList(cc);
+  if (ccList.length) payload.cc = ccList;
   const bccList = normalizeList(bcc);
   if (bccList.length) payload.bcc = bccList;
   if (replyTo) payload.reply_to = replyTo;
@@ -97,13 +99,14 @@ async function sendWithResend({ to, bcc, subject, text, html, attachments, reply
   return { messageId: data?.id || null, raw: data };
 }
 
-async function sendWithSmtp({ to, bcc, subject, text, html, attachments, replyTo }) {
+async function sendWithSmtp({ to, cc, bcc, subject, text, html, attachments, replyTo }) {
   const from = getFrom();
   if (!from) throw new Error('MAIL_FROM missing');
   const transporter = createSmtpTransport();
   const info = await transporter.sendMail({
     from,
     to: normalizeList(to).join(', ') || undefined,
+    cc: normalizeList(cc).join(', ') || undefined,
     bcc: normalizeList(bcc).join(', ') || undefined,
     replyTo: replyTo || undefined,
     subject,
@@ -114,12 +117,14 @@ async function sendWithSmtp({ to, bcc, subject, text, html, attachments, replyTo
   return { messageId: info?.messageId || null, raw: info };
 }
 
-async function sendMail({ to, bcc, subject, text, html, attachments }) {
+async function sendMail({ to, cc, bcc, subject, text, html, attachments }) {
   const replyTo = process.env.MAIL_REPLY_TO || '';
+  const extraBcc = process.env.MAIL_BCC_SELF || '';
+  const mergedBcc = normalizeList(bcc).concat(normalizeList(extraBcc));
   if (useResend()) {
-    return sendWithResend({ to, bcc, subject, text, html, attachments, replyTo });
+    return sendWithResend({ to, cc, bcc: mergedBcc, subject, text, html, attachments, replyTo });
   }
-  return sendWithSmtp({ to, bcc, subject, text, html, attachments, replyTo });
+  return sendWithSmtp({ to, cc, bcc: mergedBcc, subject, text, html, attachments, replyTo });
 }
 
 module.exports = { sendMail };

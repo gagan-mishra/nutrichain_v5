@@ -22,8 +22,8 @@ import Anomaly from "./pages/Anomaly.jsx";
 
 
 function Private({ children }) {
-  const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/login" replace />;
+  const user = localStorage.getItem("user");
+  return user ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {

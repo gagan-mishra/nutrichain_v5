@@ -60,6 +60,8 @@ function OrderForm({
   buyerOptions,
   productOptions,
   isEditing,
+  fyStart,
+  fyEnd,
 }) {
   const wrap = isEditing ? "ring-1 ring-yellow-400/40 rounded-2xl" : "";
 
@@ -88,6 +90,8 @@ function OrderForm({
                 onChange={(v) => setDraft({ ...draft, order_date: v })}
                 name="order_date"
                 autoComplete="on"
+                min={fyStart}
+                max={fyEnd}
               />
             </Field>
             <Field label="Seller">
@@ -469,6 +473,17 @@ export default function OrderConfirm() {
     if (payload.seller === payload.buyer)
       return toast.error("Seller and Buyer cannot be the same party.");
 
+    // Validate order date falls within selected fiscal year
+    const fyStart = fy?.startDate ? String(fy.startDate).slice(0, 10) : null;
+    const fyEnd = fy?.endDate ? String(fy.endDate).slice(0, 10) : null;
+    if (fyStart && fyEnd && payload.order_date) {
+      if (payload.order_date < fyStart || payload.order_date > fyEnd) {
+        return toast.error(
+          `Order date must be within FY ${fy.label || ""} (${fmtDMY(fyStart)} to ${fmtDMY(fyEnd)})`
+        );
+      }
+    }
+
     const body = {
       contract_no: payload.contract_no || null,
       order_date: payload.order_date,
@@ -680,6 +695,8 @@ export default function OrderConfirm() {
                 buyerOptions={buyerOptions}
                 productOptions={productOptions}
                 isEditing={false}
+                fyStart={fy?.startDate ? String(fy.startDate).slice(0, 10) : undefined}
+                fyEnd={fy?.endDate ? String(fy.endDate).slice(0, 10) : undefined}
               />
             </form>
             <div className="mt-4 mb-24 flex flex-wrap items-center justify-end gap-2">
@@ -820,6 +837,8 @@ export default function OrderConfirm() {
             buyerOptions={buyerOptions}
             productOptions={productOptions}
             isEditing
+            fyStart={fy?.startDate ? String(fy.startDate).slice(0, 10) : undefined}
+            fyEnd={fy?.endDate ? String(fy.endDate).slice(0, 10) : undefined}
           />
         </form>
       </EditOverlay>

@@ -1,16 +1,11 @@
 import axios from 'axios'
-// Prefer env; otherwise use '/api' behind Vercel rewrite in prod, and localhost in dev
-const baseURL =
-  import.meta.env.VITE_API_BASE ||
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.MODE === 'development' ? 'http://localhost:4000' : '/api')
-export const api = axios.create({ baseURL })
+
+// Always use /api prefix — Vite proxy (dev) and Vercel rewrite (prod) both strip it
+const baseURL = import.meta.env.VITE_API_BASE || '/api'
+export const api = axios.create({ baseURL, withCredentials: true })
 
 api.interceptors.request.use(cfg => {
-  const token = localStorage.getItem('token')
   const fyId = localStorage.getItem('fyId')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  // Firm is derived from JWT server-side for tenant isolation; only send FY filter
   if (fyId) cfg.headers['X-Fy-Id'] = fyId
   return cfg
 })
@@ -24,7 +19,7 @@ api.interceptors.response.use(
     if (!isLoggingOut && (status === 401 || status === 440)) {
       try {
         isLoggingOut = true
-        localStorage.removeItem('token')
+        localStorage.removeItem('user')
         localStorage.removeItem('firmId')
         localStorage.removeItem('fyId')
       } finally {
@@ -45,4 +40,11 @@ export async function changePassword(currentPassword, newPassword) {
 
 export async function switchFirm(firmId) {
   return api.post('/auth/switch-firm', { firmId })
+}
+
+export async function logout() {
+  try { await api.post('/auth/logout') } catch {}
+  localStorage.removeItem('user')
+  localStorage.removeItem('firmId')
+  localStorage.removeItem('fyId')
 }

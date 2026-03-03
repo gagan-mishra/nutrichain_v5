@@ -6,6 +6,8 @@ const { requireContext } = require('../middleware/context');
 const router = express.Router();
 router.use(requireAuth, requireContext);
 
+const DEFAULT_BROKERAGE = Number(process.env.DEFAULT_BROKERAGE_RATE) || 30;
+
 // Party volume (qty) by role within firm + FY
 // GET /reports/party-volume?fy_id=optional
 router.get('/party-volume', async (req, res) => {
@@ -641,7 +643,7 @@ async function computeBillTotal(pool, firmId, bill) {
   for (const r of rows) {
     const role = r.seller_id === bill.party_id ? 'SELLER' : 'BUYER';
     const qty = (r.max_qty ?? r.min_qty ?? 0) || 0;
-    const rate = overrideRate != null ? overrideRate : (role === 'SELLER' ? (r.seller_brokerage || 30) : (r.buyer_brokerage || 30));
+    const rate = overrideRate != null ? overrideRate : (role === 'SELLER' ? (r.seller_brokerage || DEFAULT_BROKERAGE) : (r.buyer_brokerage || DEFAULT_BROKERAGE));
     subtotal += Number(qty) * Number(rate);
   }
   let cgst = 0, sgst = 0, igst = 0;

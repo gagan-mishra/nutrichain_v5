@@ -1,7 +1,13 @@
 import axios from 'axios'
 
-// Always use /api prefix - Vite proxy (dev) and Vercel rewrite (prod) both strip it
-const baseURL = import.meta.env.VITE_API_BASE || '/api'
+// In production, always call '/api' so Vercel rewrites keep auth cookie first-party.
+const envBase = import.meta.env.VITE_API_BASE
+const baseURL = import.meta.env.PROD ? '/api' : (envBase || '/api')
+
+if (import.meta.env.PROD && envBase && envBase !== '/api') {
+  console.warn('Ignoring VITE_API_BASE in production; using /api for cookie auth compatibility.')
+}
+
 export const api = axios.create({ baseURL, withCredentials: true })
 
 // One-time cleanup of legacy token storage (cookie auth is now used).

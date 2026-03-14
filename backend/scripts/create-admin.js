@@ -3,12 +3,15 @@ const bcrypt = require('bcrypt');
 const { pool } = require('../src/lib/db');
 
 /*
-  Usage:
+  Usage (Unix shells):
     ADMIN_USERNAME=admin ADMIN_PASSWORD=secret ADMIN_FIRM_ID=1 npm run init-admin
+
+  Usage (PowerShell):
+    $env:ADMIN_USERNAME='admin'; $env:ADMIN_PASSWORD='secret'; $env:ADMIN_FIRM_ID='1'; npm run init-admin
 
   Notes:
   - Intended for ops/production bootstrap without exposing a public endpoint.
-  - Fails if a user with the same username exists (won’t overwrite silently).
+  - Fails if a user with the same username exists (won't overwrite silently).
 */
 
 async function main() {
@@ -38,4 +41,3 @@ async function main() {
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
-

@@ -221,6 +221,17 @@ describe('Auth routes', () => {
     });
   });
 
+  describe('POST /auth/seed-admin', () => {
+    test('returns 404 when ENABLE_SEED_ADMIN is disabled', async () => {
+      delete process.env.ENABLE_SEED_ADMIN;
+      const res = await request(app)
+        .post('/auth/seed-admin')
+        .send({ username: 'admin', password: 'secret123', firmId: 1 });
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe('GET /health', () => {
     test('returns ok', async () => {
       const res = await request(app).get('/health');

@@ -1,13 +1,14 @@
 import axios from 'axios'
 
-// Always use /api prefix — Vite proxy (dev) and Vercel rewrite (prod) both strip it
+// Always use /api prefix - Vite proxy (dev) and Vercel rewrite (prod) both strip it
 const baseURL = import.meta.env.VITE_API_BASE || '/api'
 export const api = axios.create({ baseURL, withCredentials: true })
 
+// One-time cleanup of legacy token storage (cookie auth is now used).
+try { localStorage.removeItem('token') } catch {}
+
 api.interceptors.request.use(cfg => {
-  const token = localStorage.getItem('token')
   const fyId = localStorage.getItem('fyId')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
   if (fyId) cfg.headers['X-Fy-Id'] = fyId
   return cfg
 })
@@ -21,7 +22,6 @@ api.interceptors.response.use(
     if (!isLoggingOut && (status === 401 || status === 440)) {
       try {
         isLoggingOut = true
-        localStorage.removeItem('token')
         localStorage.removeItem('user')
         localStorage.removeItem('firmId')
         localStorage.removeItem('fyId')
@@ -47,7 +47,6 @@ export async function switchFirm(firmId) {
 
 export async function logout() {
   try { await api.post('/auth/logout') } catch {}
-  localStorage.removeItem('token')
   localStorage.removeItem('user')
   localStorage.removeItem('firmId')
   localStorage.removeItem('fyId')

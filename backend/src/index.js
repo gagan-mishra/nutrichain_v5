@@ -2,6 +2,9 @@ const app = require('./app');
 const puppeteer = require('puppeteer');
 const { startBillingCron } = require('./jobs/billing-cron');
 const { startFyEnsureCron } = require('./jobs/fy-ensure');
+const { validateStartupSecurity } = require('./lib/security-startup');
+
+validateStartupSecurity();
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));

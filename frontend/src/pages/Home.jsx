@@ -9,9 +9,7 @@ export default function Home() {
   const [fys, setFys] = useState([])
   const [activeKey, setActiveKey] = useState('order-confirm')
 
-  useEffect(() => {
-    if (!localStorage.getItem('token')) localStorage.setItem('token', 'dummy') // for demo; real app uses /auth/login
-    ;(async () => {
+  useEffect(() => {    ;(async () => {
       const { data: firmList } = await api.get('/firms')
       const { data: fyList } = await api.get('/firms/fiscal-years')
       setFirms(firmList); setFys(fyList)

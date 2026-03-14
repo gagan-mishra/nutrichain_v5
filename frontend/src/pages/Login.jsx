@@ -8,8 +8,8 @@ import { api } from "../api";
 export default function Login() {
   const nav = useNavigate();
   const location = useLocation();
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("password123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -29,8 +29,7 @@ export default function Login() {
     setErr("");
     try {
       const { data } = await api.post("/auth/login", { username, password });
-      // Store token for Bearer auth (production proxy) + user info for route guard
-      if (data.token) localStorage.setItem("token", data.token);
+      // Cookie-based auth; keep only non-sensitive user info for UI guard
       localStorage.setItem("user", JSON.stringify(data.user));
 
       // fetch firms + fiscal years so the first page has context
@@ -46,7 +45,7 @@ export default function Login() {
       } catch (err) {
         console.warn("Could not prefetch firm/fy:", err);
       }
-      // enforce firm from token payload for tenant isolation
+      // enforce firm from authenticated user payload for tenant isolation
       if (data?.user?.firmId != null) {
         localStorage.setItem("firmId", String(data.user.firmId));
       }

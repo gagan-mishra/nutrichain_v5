@@ -8,6 +8,10 @@ const tokenBlacklist = require('../lib/token-blacklist');
 
 const router = express.Router();
 
+function isTruthy(v) {
+  return /^(1|true|yes|on)$/i.test(String(v || '').trim());
+}
+
 function isMissingUserFirmsTable(err) {
   return err?.code === 'ER_NO_SUCH_TABLE' && String(err?.message || '').includes('user_firms');
 }
@@ -31,11 +35,16 @@ function setTokenCookie(res, token) {
 
 // Secure, one-time bootstrap endpoint to create the first admin user.
 // Requirements:
+//  - ENABLE_SEED_ADMIN must be true
 //  - Request must include a setup token matching process.env.SETUP_TOKEN
 //  - DB must not already have users (bootstrap only)
 // You can also use the CLI script scripts/create-admin.js instead.
 router.post('/seed-admin', async (req, res) => {
   try {
+    if (!isTruthy(process.env.ENABLE_SEED_ADMIN)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
     const provided = req.header('X-Setup-Token') || req.body?.setupToken || req.query?.setup_token;
     if (!process.env.SETUP_TOKEN || provided !== process.env.SETUP_TOKEN) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -92,7 +101,7 @@ router.post('/login', async (req, res) => {
 
     const token = signToken({ id: user.id, username: user.username, firmId: user.firm_id });
     setTokenCookie(res, token);
-    res.json({ token, user: { id: user.id, username: user.username, firmId: user.firm_id } });
+    res.json({ user: { id: user.id, username: user.username, firmId: user.firm_id } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -152,7 +161,7 @@ router.post('/switch-firm', requireAuth, async (req, res) => {
 
     const token = signToken({ id: req.user.id, username: req.user.username, firmId: targetFirmId });
     setTokenCookie(res, token);
-    res.json({ token, user: { id: req.user.id, username: req.user.username, firmId: targetFirmId } });
+    res.json({ user: { id: req.user.id, username: req.user.username, firmId: targetFirmId } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

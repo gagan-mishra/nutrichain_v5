@@ -41,8 +41,8 @@ function printViaIframe(htmlDoc) {
   }, 120);
 }
 
-function printViaNewWindow(htmlDoc) {
-  const w = window.open("", "_blank", "noopener,noreferrer");
+function printViaNewWindow(htmlDoc, existingWindow = null) {
+  const w = existingWindow || window.open("", "_blank", "noopener,noreferrer");
   if (!w) {
     throw new Error("Popup blocked. Please allow popups to print on mobile.");
   }
@@ -60,19 +60,39 @@ function printViaNewWindow(htmlDoc) {
       // Some mobile browsers block programmatic print; user can use browser menu -> Print.
     }
   }, 250);
+
+  return w;
 }
 
 export function usePrintHtml() {
-  const open = useCallback((html) => {
+  const prepare = useCallback(() => {
+    if (!isLikelyMobileBrowser()) return null;
+
+    const w = window.open("", "_blank", "noopener,noreferrer");
+    if (!w) return null;
+
+    try {
+      w.document.open();
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body style="font-family:sans-serif;padding:16px;">Preparing printable document...</body></html>`);
+      w.document.close();
+    } catch (_) {
+      // no-op; final print write will try again
+    }
+
+    return w;
+  }, []);
+
+  const open = useCallback((html, opts = {}) => {
+    const { targetWindow = null } = opts;
     const htmlDoc = ensureHtmlDocument(html);
 
     if (isLikelyMobileBrowser()) {
-      printViaNewWindow(htmlDoc);
+      printViaNewWindow(htmlDoc, targetWindow || null);
       return;
     }
 
     printViaIframe(htmlDoc);
   }, []);
 
-  return { open };
+  return { open, prepare };
 }

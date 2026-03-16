@@ -69,7 +69,7 @@ function fileSafe(s = "") {
 
 export default function PartyBill() {
   const toast = useToast();
-  const { open: openPrint } = usePrintHtml();
+  const { open: openPrint, prepare: preparePrint } = usePrintHtml();
   const { firm, fy, setFirm, setFy } = useCtx();
   const [firms, setFirms] = useState([]);
   const [fys, setFys] = useState([]);
@@ -410,6 +410,7 @@ export default function PartyBill() {
                   })();
                 } else if (type === "print") {
                   (async () => {
+                    const printWindow = preparePrint?.();
                     try {
                       const { data } = await api.get('/billing/party-bills/compute', { params: {
                         party_id: row.partyId,
@@ -420,8 +421,9 @@ export default function PartyBill() {
                         brokerage: row.brokerage,
                       }});
                       const html = buildPartyBillHtml(data);
-                      openPrint(html);
+                      openPrint(html, { targetWindow: printWindow });
                     } catch (e) {
+                      if (printWindow && !printWindow.closed) printWindow.close();
                       console.error(e);
                       toast.error('Failed to build bill');
                     }

@@ -264,7 +264,7 @@ function OrderForm({
 /* ---------------- page ---------------- */
 export default function OrderConfirm() {
   const toast = useToast();
-  const { open: openPrint } = usePrintHtml();
+  const { open: openPrint, prepare: preparePrint } = usePrintHtml();
 
   // Context for firm/fy pickers + header
   const { firm, fy, setFirm, setFy } = useCtx();
@@ -570,11 +570,13 @@ export default function OrderConfirm() {
       setEditOpen(true);
     } else if (type === "print") {
       (async () => {
+        const printWindow = preparePrint?.();
         try {
           const { data } = await api.get(`/contracts/${rec.id}/print`);
           const html = buildContractPrintHtml(data);
-          openPrint(html);
+          openPrint(html, { targetWindow: printWindow });
         } catch (e) {
+          if (printWindow && !printWindow.closed) printWindow.close();
           console.error(e);
           toast.error("Failed to load printable contract");
         }
@@ -623,11 +625,13 @@ export default function OrderConfirm() {
       setEditOpen(true);
     } else if (type === "print") {
       (async () => {
+        const printWindow = preparePrint?.();
         try {
           const { data } = await api.get(`/contracts/${rec.id}/print`);
           const html = buildContractPrintHtml(data); // <-- now works with raw row
-          openPrint(html);
+          openPrint(html, { targetWindow: printWindow });
         } catch (e) {
+          if (printWindow && !printWindow.closed) printWindow.close();
           console.error(e);
           toast.error("Failed to load printable contract");
         }

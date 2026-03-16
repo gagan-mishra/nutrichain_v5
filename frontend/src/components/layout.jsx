@@ -99,9 +99,18 @@ export function AppShell({
     } catch { return firm; }
   }, [firms, firm]);
 
+  const displayFy = useMemo(() => {
+    try {
+      const id = localStorage.getItem('fyId');
+      const match = (fys || []).find((f) => String(f.id) === String(id));
+      return match || fy;
+    } catch { return fy; }
+  }, [fys, fy]);
+
   async function onPickFirm(f) {
     try {
-      const { data } = await switchFirm(f.id);      if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
+      const { data } = await switchFirm(f.id);
+      if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('firmId', String(f.id));
       setFirm(f);
     } catch (e) {
@@ -203,7 +212,7 @@ export function AppShell({
             </div>
           </div>
           <div className="mt-3 flex items-center gap-3 text-white/80">
-            <CalendarBadge fy={fy} />
+            <CalendarBadge fy={displayFy} />
           </div>
         </div>
 
@@ -257,12 +266,12 @@ export function AppShell({
             {/* Hide pickers on mobile to reduce congestion; available in drawer */}
             <div className="hidden md:flex items-center gap-3">
               <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} />
-              <FyPill fy={fy} fys={fys} onPick={setFy} />
+              <FyPill fy={displayFy} fys={fys} onPick={setFy} />
             </div>
 
             <div className="hidden md:flex items-center gap-3">
               <div className="h-8 w-px bg-white/10" />
-              <div className="rounded-lg bg-white/5 px-2 py-1 text-sm text-white">@username</div>
+              <div className="rounded-lg bg-white/5 px-2 py-1 text-sm text-white">Welcome, Deepak</div>
 
               {/* Change password */}
               <button
@@ -296,10 +305,10 @@ export function AppShell({
           </div>
           <div className="hidden md:flex items-center gap-2">
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
-              Firm: <strong className="ml-1 text-white">{firm?.name || "â€”"}</strong>
+              Firm: <strong className="ml-1 text-white">{firm?.name || "—"}</strong>
             </span>
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
-              FY: <strong className="ml-1 text-white">{fy?.label || "â€”"}</strong>
+              FY: <strong className="ml-1 text-white">{displayFy?.label || "—"}</strong>
             </span>
           </div>
         </div>
@@ -341,7 +350,7 @@ export function AppShell({
               <div className="mb-2 text-xs uppercase tracking-wider text-white/50">Context</div>
               <div className="flex flex-col gap-2">
                 <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} />
-                <FyPill fy={fy} fys={fys || []} onPick={setFy} />
+                <FyPill fy={displayFy} fys={fys || []} onPick={setFy} />
               </div>
             </div>
 
@@ -412,3 +421,4 @@ function labelFromKey(key) {
   };
   return map[key] || key;
 }
+

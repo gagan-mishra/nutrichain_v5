@@ -11,7 +11,8 @@
     "seed": "node scripts/seed.js",
     "gen": "node scripts/generate.js",
     "reset": "node scripts/reset.js",
-    "init-admin": "node scripts/create-admin.js"
+    "init-admin": "node scripts/create-admin.js",
+    "simulate-cron": "node scripts/simulate-cron.js"
   },
   "keywords": [],
   "author": "",

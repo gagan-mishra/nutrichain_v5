@@ -108,7 +108,12 @@ router.get("/fiscal-years", async (_req, res) => {
     const [rows] = await pool.execute(
       `SELECT id, label, start_date AS startDate, end_date AS endDate
          FROM fiscal_years
-        ORDER BY start_date DESC`
+        ORDER BY
+          CASE
+            WHEN CURDATE() BETWEEN start_date AND end_date THEN 0
+            ELSE 1
+          END ASC,
+          start_date DESC`
     );
     res.json(rows);
   } catch (e) {

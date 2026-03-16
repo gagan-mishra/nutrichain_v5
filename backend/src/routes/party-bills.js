@@ -5,6 +5,7 @@ const { requireContext } = require('../middleware/context');
 const puppeteer = require('puppeteer');
 const { buildPartyBillPrintHtml } = require('../lib/party-bill-template');
 const { sendMail } = require('../lib/mailer');
+const { allocateNextBillNo, withBillNoTransaction } = require('../lib/bill-number-sequence');
 
 const router = express.Router();
 router.use(requireAuth, requireContext);
@@ -43,58 +44,56 @@ router.post('/', async (req, res) => {
     );
     if (dup) return res.status(409).json({ error: 'Bill already exists for this party and FY.' });
 
-    // Attempt insert with small retry window to avoid duplicate bill_no race
-    const insertOnce = async () => {
-      // If bill_no missing, assign next numeric within firm + FY
+    // Create bill inside one transaction when auto-assigning bill_no, so numbering stays strict.
+    const id = await withBillNoTransaction(async (conn) => {
+      const [[dupTx]] = await conn.execute(
+        'SELECT id FROM party_bills WHERE firm_id = ? AND party_id = ? AND ((fiscal_year_id IS NULL AND ? IS NULL) OR fiscal_year_id = ?) LIMIT 1',
+        [req.ctx.firmId, b.party_id, fyId, fyId]
+      );
+      if (dupTx) {
+        const err = new Error('Bill already exists for this party and FY.');
+        err.httpStatus = 409;
+        throw err;
+      }
+
+      // Keep support for manually-entered bill numbers; otherwise allocate strict sequential number.
       let billNo = (b.bill_no ?? '').toString().trim();
       if (billNo) {
         const n = parseInt(billNo, 10);
         billNo = Number.isFinite(n) && n > 0 ? String(n) : '';
       }
       if (!billNo) {
-        const [[row]] = await pool.execute(
-          `SELECT CAST(COALESCE(MAX(CAST(bill_no AS UNSIGNED)), 0) + 1 AS UNSIGNED) AS next_no
-             FROM party_bills WHERE firm_id = ? AND fiscal_year_id = ?`,
-          [req.ctx.firmId, fyId]
-        );
-        billNo = String(row?.next_no || 1);
-      }
-      const sql = `
-        INSERT INTO party_bills
-          (firm_id, fiscal_year_id, party_id, bill_no, from_date, to_date, bill_date, brokerage)
-        VALUES (?,?,?,?,?,?,?,?)`;
-      const params = [
-        req.ctx.firmId,
-        fyId,
-        b.party_id,
-        billNo,
-        b.from_date,
-        b.to_date,
-        b.bill_date,
-        b.brokerage || 0,
-      ];
-      const [r] = await pool.execute(sql, params);
-      return r.insertId;
-    };
-
-    let lastErr;
-    for (let i=0;i<3;i++){
-      try {
-        const id = await insertOnce();
-        return res.json({ id });
-      } catch (e) {
-        // Retry only on duplicate bill number
-        if (e?.code === 'ER_DUP_ENTRY' && String(e.sqlMessage || '').includes('uq_bill_firm_fy_no')) {
-          await new Promise(r=>setTimeout(r, 50 + Math.random()*100));
-          lastErr = e; continue;
+        if (!fyId) {
+          const err = new Error('Fiscal year is required for auto bill numbering.');
+          err.httpStatus = 400;
+          throw err;
         }
-        throw e;
+        billNo = await allocateNextBillNo(conn, req.ctx.firmId, fyId);
+      }
+
+      const [r] = await conn.execute(
+        'INSERT INTO party_bills (firm_id, fiscal_year_id, party_id, bill_no, from_date, to_date, bill_date, brokerage) VALUES (?,?,?,?,?,?,?,?)',
+        [req.ctx.firmId, fyId, b.party_id, billNo, b.from_date, b.to_date, b.bill_date, b.brokerage || 0]
+      );
+
+      return r.insertId;
+    });
+
+    return res.json({ id });
+  } catch (e) {
+    if (e?.httpStatus) {
+      return res.status(e.httpStatus).json({ error: e.message });
+    }
+    if (e?.code === 'ER_DUP_ENTRY') {
+      const msg = String(e?.sqlMessage || '');
+      if (msg.includes('uq_bill_firm_fy_party')) {
+        return res.status(409).json({ error: 'Bill already exists for this party and FY.' });
+      }
+      if (msg.includes('uq_bill_firm_fy_no')) {
+        return res.status(409).json({ error: 'Bill number conflict. Please try again.' });
       }
     }
-    if (lastErr) {
-      return res.status(409).json({ error: 'Bill number conflict. Please try again.' });
-    }
-  } catch (e) {
+
     console.error('party-bills POST error:', e);
     res.status(500).json({ error: 'failed to create bill' });
   }
@@ -576,3 +575,4 @@ router.post('/:id/mail', async (req, res) => {
     res.status(500).json({ error: 'failed to send mail' });
   }
 });
+

@@ -24,6 +24,11 @@ function nextFyFor(date = new Date()) {
   return { label, start: toYMD(start), end: toYMD(end) };
 }
 
+function shouldEnsureNextFy(date = new Date()) {
+  // Show upcoming FY from Mar 26 onward each year.
+  return date.getMonth() === 2 && date.getDate() >= 26;
+}
+
 async function ensureFyExists({ label, start, end }) {
   const [[row]] = await pool.execute(
     `SELECT id FROM fiscal_years WHERE label = ? OR (start_date = ? AND end_date = ?) LIMIT 1`,
@@ -37,12 +42,11 @@ async function ensureFyExists({ label, start, end }) {
   return r.insertId;
 }
 
-async function ensureFiscalYears() {
-  const today = new Date();
+async function ensureFiscalYears(today = new Date()) {
   // Always ensure current FY exists
   await ensureFyExists(currentFyFor(today));
-  // Ensure next FY appears on Mar 30/31 (so users can see upcoming FY in the pill)
-  if (today.getMonth() === 2 && today.getDate() >= 30) {
+  // Ensure next FY appears from Mar 26 (so users can prepare before Apr 1)
+  if (shouldEnsureNextFy(today)) {
     await ensureFyExists(nextFyFor(today));
   }
 }
@@ -55,5 +59,10 @@ function startFyEnsureCron() {
   setInterval(() => ensureFiscalYears().catch(() => {}), oneDay);
 }
 
-module.exports = { ensureFiscalYears, startFyEnsureCron };
-
+module.exports = {
+  currentFyFor,
+  nextFyFor,
+  shouldEnsureNextFy,
+  ensureFiscalYears,
+  startFyEnsureCron,
+};

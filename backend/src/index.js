@@ -11,7 +11,7 @@ app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
 
 // Optional: start scheduler to auto-create bills at FY end
 startBillingCron();
-// Ensure current FY exists and next FY appears around Mar 30/31
+// Ensure current FY exists and next FY appears from Mar 26 onward
 startFyEnsureCron();
 
 // Optional readiness: verify Puppeteer can launch (for printing/emailing bills)

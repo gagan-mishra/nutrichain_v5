@@ -12,6 +12,25 @@ function ensureHtmlDocument(html) {
   return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body>${src}</body></html>`;
 }
 
+function writeHtmlToWindow(w, htmlDoc) {
+  try {
+    w.document.open();
+    w.document.write(htmlDoc);
+    w.document.close();
+    return true;
+  } catch (_) {
+    try {
+      const blob = new Blob([htmlDoc], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      w.location.replace(url);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
 function printViaIframe(htmlDoc) {
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
@@ -42,14 +61,15 @@ function printViaIframe(htmlDoc) {
 }
 
 function printViaNewWindow(htmlDoc, existingWindow = null) {
-  const w = existingWindow || window.open("", "_blank", "noopener,noreferrer");
+  const w = existingWindow || window.open("about:blank", "_blank");
   if (!w) {
     throw new Error("Popup blocked. Please allow popups to print on mobile.");
   }
 
-  w.document.open();
-  w.document.write(htmlDoc);
-  w.document.close();
+  const rendered = writeHtmlToWindow(w, htmlDoc);
+  if (!rendered) {
+    throw new Error("Unable to render printable document in popup window.");
+  }
 
   // On mobile browsers, printing from a dedicated tab is more reliable than iframe print.
   setTimeout(() => {
@@ -68,16 +88,13 @@ export function usePrintHtml() {
   const prepare = useCallback(() => {
     if (!isLikelyMobileBrowser()) return null;
 
-    const w = window.open("", "_blank", "noopener,noreferrer");
+    const w = window.open("about:blank", "_blank");
     if (!w) return null;
 
-    try {
-      w.document.open();
-      w.document.write(`<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body style="font-family:sans-serif;padding:16px;">Preparing printable document...</body></html>`);
-      w.document.close();
-    } catch (_) {
-      // no-op; final print write will try again
-    }
+    writeHtmlToWindow(
+      w,
+      `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body style="font-family:sans-serif;padding:16px;">Preparing printable document...</body></html>`,
+    );
 
     return w;
   }, []);

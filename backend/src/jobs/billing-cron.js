@@ -3,6 +3,7 @@
 
 const { pool } = require('../lib/db');
 const { allocateNextBillNo, withBillNoTransaction } = require('../lib/bill-number-sequence');
+const AUTO_BILL_BROKERAGE = 40;
 
 function toDateStr(d) {
   const y = d.getFullYear();
@@ -31,7 +32,7 @@ async function createBillForParty(firmId, fyId, partyId, startDate, endDate) {
         `INSERT INTO party_bills
           (firm_id, fiscal_year_id, party_id, bill_no, from_date, to_date, bill_date, brokerage)
          VALUES (?,?,?,?,?,?,?,?)`,
-        [firmId, fyId, partyId, billNo, startDate, endDate, endDate, 30]
+        [firmId, fyId, partyId, billNo, startDate, endDate, endDate, AUTO_BILL_BROKERAGE]
       );
 
       return true;

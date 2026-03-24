@@ -27,4 +27,4 @@ SELECT
 FROM party_bills
 WHERE fiscal_year_id IS NOT NULL
 GROUP BY firm_id, fiscal_year_id
-ON DUPLICATE KEY UPDATE next_no = GREATEST(party_bill_sequences.next_no, VALUES(next_no));
+ON DUPLICATE KEY UPDATE next_no = VALUES(next_no), updated_at = CURRENT_TIMESTAMP;

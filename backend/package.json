@@ -12,7 +12,9 @@
     "gen": "node scripts/generate.js",
     "reset": "node scripts/reset.js",
     "init-admin": "node scripts/create-admin.js",
-    "simulate-cron": "node scripts/simulate-cron.js"
+    "simulate-cron": "node scripts/simulate-cron.js",
+    "import-infinity": "node scripts/import-infinity.js",
+    "rebuild-bill-seq": "node scripts/rebuild-bill-sequences.js"
   },
   "keywords": [],
   "author": "",
@@ -40,3 +42,4 @@
     "supertest": "^7.2.2"
   }
 }
+

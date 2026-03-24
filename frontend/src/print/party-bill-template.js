@@ -11,8 +11,8 @@ export function buildPartyBillHtml(data) {
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #E5E7EB; padding: 6px 8px; font-size: 12px; }
   th { background: #F3F4F6; text-align: left; }
-  .totals td { border: none; }
-  .totals .label { text-align: right; }
+  .totals-row td { border: none; }
+  .totals-row .label { text-align: right; }
   `;
 
   const firmHeader = `
@@ -56,11 +56,23 @@ export function buildPartyBillHtml(data) {
   const cg = Number(party.cgst_rate || 0);
   const sg = Number(party.sgst_rate || 0);
   const ig = Number(party.igst_rate || 0);
-  if ((totals.cgst || 0) > 0) taxRows.push(`<tr><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.cgst)}</td></tr>`);
-  if ((totals.sgst || 0) > 0) taxRows.push(`<tr><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.sgst)}</td></tr>`);
-  if ((totals.igst || 0) > 0) taxRows.push(`<tr><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.igst)}</td></tr>`);
+  if ((totals.cgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.cgst)}</td></tr>`);
+  if ((totals.sgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.sgst)}</td></tr>`);
+  if ((totals.igst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.igst)}</td></tr>`);
 
   const totalWords = amountToWordsIndian(totals.total || 0);
+  const totalsRows = `
+    <tr class="totals-row"><td class="label" colspan="8"><strong>Subtotal</strong></td><td style="text-align:right;">${num(totals.subtotal)}</td></tr>
+    ${taxRows.join('')}
+    <tr class="totals-row">
+      <td colspan="6" style="border:none"></td>
+      <td class="label" colspan="2"><strong>Total</strong></td>
+      <td style="text-align:right;">${num(totals.total)}</td>
+    </tr>
+    <tr class="totals-row">
+      <td colspan="9" style="border:none; padding-top:8px"><em>Amount in words:</em> <strong>${escapeHtml(totalWords)}</strong></td>
+    </tr>
+  `;
   const html = `
   <html>
     <head>
@@ -86,19 +98,7 @@ export function buildPartyBillHtml(data) {
               <th>Amount</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
-          <tfoot>
-            <tr class="totals"><td class="label" colspan="8"><strong>Subtotal</strong></td><td style="text-align:right;">${num(totals.subtotal)}</td></tr>
-            ${taxRows.join('')}
-            <tr class="totals">
-              <td colspan="6" style="border:none"></td>
-              <td class="label" colspan="2"><strong>Total</strong></td>
-              <td style="text-align:right;">${num(totals.total)}</td>
-            </tr>
-            <tr class="totals">
-              <td colspan="9" style="border:none; padding-top:8px"><em>Amount in words:</em> <strong>${escapeHtml(totalWords)}</strong></td>
-            </tr>
-          </tfoot>
+          <tbody>${rows}${totalsRows}</tbody>
         </table>
 
         <div style="display:flex; justify-content:space-between; margin-top:40px; font-size:12px;">

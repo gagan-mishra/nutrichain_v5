@@ -1,0 +1,26 @@
+Infinity -> Nutrichain Import Runbook
+====================================
+
+0) Take backup of target DB first
+PowerShell example:
+  .\scripts\backup-db.ps1 -DbHost "<TARGET_HOST>" -DbPort <TARGET_PORT> -DbUser "<TARGET_USER>" -DbName "<TARGET_DB>" -OutDir ".\backups"
+
+1) Load legacy dump into a temporary source database
+Example:
+  mysql -h 127.0.0.1 -P 3306 -u root -p -e "CREATE DATABASE IF NOT EXISTS infinity_source CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+  mysql -h 127.0.0.1 -P 3306 -u root -p infinity_source < .\infinity_app.sql
+
+2) Run DRY-RUN import (no changes committed)
+From backend folder:
+  npm.cmd run import-infinity -- --source-db infinity_source --source-host 127.0.0.1 --source-port 3306 --source-user root --source-pass "<SOURCE_PASSWORD>"
+
+3) If summary looks correct, run APPLY import
+  npm.cmd run import-infinity -- --apply --source-db infinity_source --source-host 127.0.0.1 --source-port 3306 --source-user root --source-pass "<SOURCE_PASSWORD>"
+
+4) Optional: include deleted rows from legacy app
+  Add: --include-deleted
+
+Notes:
+- Import is idempotent using table: legacy_infinity_import_map.
+- Default mode is dry-run. Only --apply commits.
+- If PowerShell blocks npm.ps1, use npm.cmd as shown above.

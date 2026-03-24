@@ -157,7 +157,9 @@ router.get('/sales', async (req, res) => {
 router.get('/price-series', async (req, res) => {
   try {
     const firmId = req.ctx.firmId;
-    const fyId = req.ctx.fyId || null;
+    const fyIdFromHeader = req.ctx.fyId ? Number(req.ctx.fyId) : null;
+    const fyIdFromQuery = req.query.fy_id ? Number(req.query.fy_id) : null;
+    const fyId = Number.isFinite(fyIdFromQuery) && fyIdFromQuery > 0 ? fyIdFromQuery : fyIdFromHeader;
     const productId = Number(req.query.product_id);
     if (!productId) return res.status(400).json({ error: 'product_id required' });
     const group = (req.query.group || 'day').toLowerCase();
@@ -167,7 +169,8 @@ router.get('/price-series', async (req, res) => {
     const role = (req.query.role || 'any').toLowerCase(); // any|seller|buyer
 
     const params = [firmId, productId];
-    let where = 'c.firm_id = ? AND c.product_id = ? AND c.deleted_at IS NULL AND c.price IS NOT NULL';
+    const qtyExpr = 'COALESCE(NULLIF(c.max_qty, 0), NULLIF(c.min_qty, 0), 0)';
+    let where = 'c.firm_id = ? AND c.product_id = ? AND c.deleted_at IS NULL AND c.price IS NOT NULL AND c.price > 0';
     if (fyId) { where += ' AND c.fiscal_year_id = ?'; params.push(fyId); }
     if (partyId) {
       if (role === 'seller') { where += ' AND c.seller_id = ?'; params.push(partyId); }
@@ -177,13 +180,24 @@ router.get('/price-series', async (req, res) => {
 
     if (stat === 'avg') {
       const sql = `
-        SELECT DATE_FORMAT(c.order_date, '${fmt}') AS period, AVG(c.price) AS price
+        SELECT DATE_FORMAT(c.order_date, '${fmt}') AS period,
+               COALESCE(
+                 SUM(c.price * ${qtyExpr}) / NULLIF(SUM(${qtyExpr}), 0),
+                 AVG(c.price)
+               ) AS price,
+               COUNT(*) AS cnt,
+               SUM(${qtyExpr}) AS total_qty
           FROM contracts c
          WHERE ${where}
          GROUP BY period
          ORDER BY period ASC`;
       const [rows] = await pool.execute(sql, params);
-      return res.json(rows.map(r=>({ period: r.period, price: r.price==null? null : Number(r.price) })));
+      return res.json(rows.map((r) => ({
+        period: r.period,
+        price: r.price == null ? null : Number(r.price),
+        count: Number(r.cnt || 0),
+        qty: Number(r.total_qty || 0),
+      })));
     }
 
     if (stat === 'band') {
@@ -191,8 +205,12 @@ router.get('/price-series', async (req, res) => {
         SELECT DATE_FORMAT(c.order_date, '${fmt}') AS period,
                MIN(c.price) AS min_price,
                MAX(c.price) AS max_price,
-               AVG(c.price) AS avg_price,
-               COUNT(*) AS cnt
+               COALESCE(
+                 SUM(c.price * ${qtyExpr}) / NULLIF(SUM(${qtyExpr}), 0),
+                 AVG(c.price)
+               ) AS avg_price,
+               COUNT(*) AS cnt,
+               SUM(${qtyExpr}) AS total_qty
           FROM contracts c
          WHERE ${where}
          GROUP BY period
@@ -204,22 +222,43 @@ router.get('/price-series', async (req, res) => {
         max: r.max_price == null ? null : Number(r.max_price),
         avg: r.avg_price == null ? null : Number(r.avg_price),
         count: Number(r.cnt || 0),
+        qty: Number(r.total_qty || 0),
       })));
     }
 
-    // last price by period: take price for max(id) in each period
-    const sql = `
+    // Close price by period (latest trade inside each period) + period activity metrics.
+    const sqlLast = `
       SELECT t.period, c.price
         FROM (
-          SELECT DATE_FORMAT(order_date, '${fmt}') AS period, MAX(id) AS id
+          SELECT DATE_FORMAT(c.order_date, '${fmt}') AS period,
+                 MAX(CONCAT(DATE_FORMAT(c.order_date, '%Y-%m-%d'), '|', LPAD(c.id, 12, '0'))) AS last_key
             FROM contracts c
            WHERE ${where}
-           GROUP BY DATE_FORMAT(order_date, '${fmt}')
+           GROUP BY DATE_FORMAT(c.order_date, '${fmt}')
         ) t
-        JOIN contracts c ON c.id = t.id
+        JOIN contracts c
+          ON DATE_FORMAT(c.order_date, '${fmt}') = t.period
+         AND CONCAT(DATE_FORMAT(c.order_date, '%Y-%m-%d'), '|', LPAD(c.id, 12, '0')) = t.last_key
        ORDER BY t.period ASC`;
-    const [rows] = await pool.execute(sql, params);
-    res.json(rows.map(r=>({ period: r.period, price: r.price==null? null : Number(r.price) })));
+    const sqlAgg = `
+      SELECT DATE_FORMAT(c.order_date, '${fmt}') AS period,
+             COUNT(*) AS cnt,
+             SUM(${qtyExpr}) AS total_qty
+        FROM contracts c
+       WHERE ${where}
+       GROUP BY period`;
+
+    const [lastRows] = await pool.execute(sqlLast, params);
+    const [aggRows] = await pool.execute(sqlAgg, params);
+    const aggByPeriod = new Map(
+      aggRows.map((r) => [r.period, { count: Number(r.cnt || 0), qty: Number(r.total_qty || 0) }])
+    );
+
+    res.json(lastRows.map((r) => ({
+      period: r.period,
+      price: r.price == null ? null : Number(r.price),
+      ...(aggByPeriod.get(r.period) || { count: 0, qty: 0 }),
+    })));
   } catch (e) {
     console.error('reports price-series error:', e);
     res.status(500).json({ error: 'failed to build price series' });

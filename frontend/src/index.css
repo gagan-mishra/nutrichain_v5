@@ -10,4 +10,61 @@
     padding-top: 0.625rem; /* py-2.5 */
     padding-bottom: 0.625rem;
   }
+
+  /* Theme-matched thin scrollbars (Firefox + Chromium/WebKit) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.6) rgba(15, 23, 42, 0.55);
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.55);
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.7), rgba(100, 116, 139, 0.8));
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.65);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(196, 206, 220, 0.78), rgba(129, 145, 168, 0.9));
+  }
+}
+
+@layer utilities {
+  .table-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.7) rgba(15, 23, 42, 0.45);
+  }
+
+  .table-scrollbar::-webkit-scrollbar {
+    height: 7px;
+    width: 7px;
+  }
+
+  .table-scrollbar::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 999px;
+  }
+
+  .table-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.75), rgba(100, 116, 139, 0.85));
+    border-radius: 999px;
+  }
+
+  .hide-x-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .hide-x-scrollbar::-webkit-scrollbar {
+    height: 0 !important;
+  }
 }

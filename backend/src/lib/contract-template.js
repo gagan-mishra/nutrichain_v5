@@ -326,7 +326,7 @@ function buildContractPrintHtml(input) {
   const firmAddress =
     input.firmAddress ||
     row.firm_address ||
-    "123, Business Park, Main Road, City, State, PIN";
+    "";
 
   const c = {
     contract_no: row.contract_no ?? "",
@@ -483,7 +483,7 @@ function buildContractPrintHtml(input) {
       <div class="sig">Buyer</div>
       <div class="sig">Seller</div>
       <div class="firm-block">
-        <div class="firm-name">${esc(firmName)}, <br> Sangli</div>
+        <div class="firm-name">${esc(firmName)}</div>
         <div class="note"><strong>Note:</strong> This is a system generated document<br/>and does not require signature.</div>
       </div>
     </div>

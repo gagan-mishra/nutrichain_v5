@@ -1,5 +1,5 @@
 // src/pages/BillReceive.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -36,6 +36,7 @@ export default function BillReceive() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [summaries, setSummaries] = useState({}); // { [billId]: { total, received, outstanding } }
+  const summaryInFlight = useRef(new Map());
   const [showOutstandingOnly, setShowOutstandingOnly] = useState(true);
 
   // Receive overlay state
@@ -103,13 +104,47 @@ export default function BillReceive() {
   }
   useEffect(() => { if (firm?.id) refresh(); }, [firm?.id, fy?.id, partyFilter]);
 
+  function normalizeSummaryPayload(data) {
+    return {
+      total: Number(data?.total || 0),
+      received: Number(data?.received || 0),
+      outstanding: Number(data?.outstanding || 0),
+    };
+  }
+
+  async function fetchAndCacheSummary(billId) {
+    if (!billId) return null;
+    const pending = summaryInFlight.current.get(billId);
+    if (pending) return pending;
+
+    const req = (async () => {
+      const { data } = await api.get(`/billing/party-bills/${billId}/summary`);
+      const next = normalizeSummaryPayload(data);
+      setSummaries((m) => {
+        const prev = m[billId];
+        if (
+          prev
+          && Number(prev.total || 0) === next.total
+          && Number(prev.received || 0) === next.received
+          && Number(prev.outstanding || 0) === next.outstanding
+        ) return m;
+        return { ...m, [billId]: next };
+      });
+      return next;
+    })();
+
+    summaryInFlight.current.set(billId, req);
+    try { return await req; }
+    finally { summaryInFlight.current.delete(billId); }
+  }
+
   async function loadReceipts(billId) {
     const { data } = await api.get(`/billing/party-bills/${billId}/receipts`);
     setReceipts(data || []);
   }
   async function loadSummary(billId) {
-    const { data } = await api.get(`/billing/party-bills/${billId}/summary`);
-    setSummary({ total: Number(data.total||0), received: Number(data.received||0), outstanding: Number(data.outstanding||0) });
+    const next = await fetchAndCacheSummary(billId);
+    if (next) setSummary(next);
   }
   function openReceive(row) {
     setReceiveFor(row);
@@ -135,10 +170,6 @@ export default function BillReceive() {
       });
       setRcvAmount("");
       await Promise.all([loadReceipts(receiveFor.id), loadSummary(receiveFor.id)]);
-      try {
-        const { data } = await api.get(`/billing/party-bills/${receiveFor.id}/summary`);
-        setSummaries((m) => ({ ...m, [receiveFor.id]: data }));
-      } catch (_) {}
       toast.success('Receipt added');
     } catch (e) {
       console.error(e);
@@ -151,10 +182,6 @@ export default function BillReceive() {
     try {
       await api.delete(`/billing/party-bills/${receiveFor.id}/receipts/${rid}`);
       await Promise.all([loadReceipts(receiveFor.id), loadSummary(receiveFor.id)]);
-      try {
-        const { data } = await api.get(`/billing/party-bills/${receiveFor.id}/summary`);
-        setSummaries((m) => ({ ...m, [receiveFor.id]: data }));
-      } catch (_) {}
       toast.success('Receipt removed');
     } catch (e) {
       console.error(e);
@@ -166,23 +193,43 @@ export default function BillReceive() {
     { key: "billId", label: "Bill No." },
     { key: "partyName", label: "Party" },
     { key: "billDate", label: "Bill Date" },
-    { key: "received", label: "Received", render: (_v, row) => {
-      const s = summaries[row.id];
-      return s ? formatINR(s.received || 0) : '…';
-    } },
-    { key: "outstanding", label: "Outstanding", render: (_v, row) => {
-      const s = summaries[row.id];
-      return s ? (
-        <span className={Number(s.outstanding||0) > 0 ? "text-red-300" : "text-emerald-300"}>
-          {formatINR(s.outstanding || 0)}
-        </span>
-      ) : '…';
-    } },
-    { key: "mailedAt", label: "Mail", render: (v) => (
-      v
-        ? <span className="rounded px-2 py-0.5 text-xs bg-emerald-500/15 border border-emerald-500/25 text-emerald-200">Mailed</span>
-        : <span className="rounded px-2 py-0.5 text-xs bg-yellow-500/15 border border-yellow-500/25 text-yellow-200">Not sent</span>
-    )},
+    {
+      key: "received",
+      label: "Received",
+      sortValue: (row) => {
+        const s = summaries[row.id];
+        return s ? Number(s.received || 0) : null;
+      },
+      render: (_v, row) => {
+        const s = summaries[row.id];
+        return s ? formatINR(s.received || 0) : "...";
+      },
+    },
+    {
+      key: "outstanding",
+      label: "Outstanding",
+      sortValue: (row) => {
+        const s = summaries[row.id];
+        return s ? Number(s.outstanding || 0) : null;
+      },
+      render: (_v, row) => {
+        const s = summaries[row.id];
+        return s ? (
+          <span className={Number(s.outstanding || 0) > 0 ? "text-red-300" : "text-emerald-300"}>
+            {formatINR(s.outstanding || 0)}
+          </span>
+        ) : "...";
+      },
+    },
+    {
+      key: "mailedAt",
+      label: "Mail",
+      render: (v) => (
+        v
+          ? <span className="rounded px-2 py-0.5 text-xs bg-emerald-500/15 border border-emerald-500/25 text-emerald-200">Mailed</span>
+          : <span className="rounded px-2 py-0.5 text-xs bg-yellow-500/15 border border-yellow-500/25 text-yellow-200">Not sent</span>
+      ),
+    },
   ];
 
   const filtered = useMemo(() => {
@@ -224,32 +271,23 @@ export default function BillReceive() {
   useEffect(() => { setPage(1); }, [q, pageSize, partyFilter, showOutstandingOnly]);
   useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
 
-  // Preload summaries for visible rows
+  // Preload summaries in small deduped batches so we don't flood /summary requests
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      for (const r of pageRows) {
-        if (!summaries[r.id]) {
-          try {
-            const { data } = await api.get(`/billing/party-bills/${r.id}/summary`);
-            setSummaries((m) => ({ ...m, [r.id]: data }));
-          } catch (_) {}
-        }
-      }
-    })();
-  }, [pageRows, summaries]);
+      const missingIds = filtered2
+        .map((r) => r.id)
+        .filter((id) => !summaries[id] && !summaryInFlight.current.has(id));
 
-  // Always preload summaries for the entire filtered set so totals are accurate
-  useEffect(() => {
-    (async () => {
-      for (const r of filtered2) {
-        if (!summaries[r.id]) {
-          try {
-            const { data } = await api.get(`/billing/party-bills/${r.id}/summary`);
-            setSummaries((m) => ({ ...m, [r.id]: data }));
-          } catch (_) {}
-        }
+      const batch = missingIds.slice(0, 15);
+      for (const id of batch) {
+        if (cancelled) break;
+        try {
+          await fetchAndCacheSummary(id);
+        } catch (_) {}
       }
     })();
+    return () => { cancelled = true; };
   }, [filtered2, summaries]);
 
   // Compute totals for the current filtered set

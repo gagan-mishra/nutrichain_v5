@@ -9,11 +9,14 @@ require('dotenv').config();
 const { pool } = require('../src/lib/db');
 
 const TABLES_IN_ORDER = [
-  // child → parent order
+  // Child to parent order.
   'party_bill_receipts',
   'party_bills',
+  'party_bill_sequences',
   'contracts',
   'party_emails',
+  'user_firms',
+  'legacy_infinity_import_map',
   'users',
   'parties',
   'products',
@@ -21,7 +24,7 @@ const TABLES_IN_ORDER = [
   'fiscal_years',
 ];
 
-async function run(){
+async function run() {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -48,4 +51,3 @@ async function run(){
 }
 
 run();
-

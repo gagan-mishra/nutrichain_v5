@@ -45,7 +45,7 @@ export function Card({ title, children, actions }) {
 export function IconButton({ title, onClick, children }) {
   return (
     <button title={title} onClick={onClick} className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-white/90 transition-colors hover:bg-white/10 ${glass} bg-black/20`}>
-      {children}<span className="hidden md:inline">{title}</span>
+      {children}<span className="hidden lg:inline">{title}</span>
     </button>
   )
 }

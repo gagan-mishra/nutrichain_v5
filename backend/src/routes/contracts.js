@@ -256,9 +256,6 @@ router.get("/:id/print", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const firmId = req.ctx.firmId;
-    const FIRM_ADDR =
-      process.env.FIRM_ADDRESS ||
-      "123, Business Park, Main Road, City, State, PIN";
 
     const sql = `
       SELECT
@@ -267,7 +264,7 @@ router.get("/:id/print", async (req, res) => {
         b.name AS buyer_name, b.address AS buyer_address, b.contact AS buyer_contact,
         p.name AS product_name, p.unit AS product_unit,
         f.name AS firm_name,
-        ? AS firm_address
+        f.address AS firm_address
       FROM contracts c
       JOIN parties s ON s.id = c.seller_id
       JOIN parties b ON b.id = c.buyer_id
@@ -275,7 +272,7 @@ router.get("/:id/print", async (req, res) => {
       JOIN firms f ON f.id = c.firm_id
       WHERE c.id = ? AND c.firm_id = ?
       LIMIT 1`;
-    const [rows] = await pool.execute(sql, [FIRM_ADDR, id, firmId]);
+    const [rows] = await pool.execute(sql, [id, firmId]);
     if (!rows.length) return res.status(404).json({ error: "Not found" });
     res.json(rows[0]);
   } catch (e) {
@@ -294,9 +291,6 @@ router.post("/:id/mail", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const firmId = req.ctx.firmId;
-    const FIRM_ADDR =
-      process.env.FIRM_ADDRESS ||
-      "123, Business Park, Main Road, City, State, PIN";
 
     // Pull contract + parties + emails (party_emails)
     const sql = `
@@ -305,7 +299,7 @@ router.post("/:id/mail", async (req, res) => {
         s.name AS seller_name, s.address AS seller_address, s.contact AS seller_contact,
         b.name AS buyer_name,  b.address AS buyer_address,  b.contact AS buyer_contact,
         p.name AS product_name, p.unit AS product_unit,
-        f.name AS firm_name, ? AS firm_address,
+        f.name AS firm_name, f.address AS firm_address,
         GROUP_CONCAT(DISTINCT se.email) AS seller_emails,
         GROUP_CONCAT(DISTINCT be.email) AS buyer_emails
       FROM contracts c
@@ -319,7 +313,7 @@ router.post("/:id/mail", async (req, res) => {
       GROUP BY c.id
       LIMIT 1
     `;
-    const [rows] = await pool.execute(sql, [FIRM_ADDR, id, firmId]);
+    const [rows] = await pool.execute(sql, [id, firmId]);
     if (!rows.length) return res.status(404).json({ error: "Not found" });
     const row = rows[0];
 

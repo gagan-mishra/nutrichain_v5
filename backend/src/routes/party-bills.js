@@ -550,7 +550,8 @@ router.post('/:id/mail', async (req, res) => {
       totals: { subtotal, ...taxes, total },
     };
 
-    const html = buildPartyBillPrintHtml(payload);
+    const htmlOverride = typeof req.body?.html === 'string' ? req.body.html.trim() : '';
+    const html = htmlOverride || buildPartyBillPrintHtml(payload);
     const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox'] });
     let pdf; try {
       const page = await browser.newPage();

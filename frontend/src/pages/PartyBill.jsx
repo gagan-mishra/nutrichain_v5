@@ -446,7 +446,18 @@ export default function PartyBill() {
                   (async () => {
                     toast.info('Preparing email…');
                     try {
-                      const { data } = await api.post(`/billing/party-bills/${row.id}/mail`);
+                      const { data: billData } = await api.get('/billing/party-bills/compute', {
+                        params: {
+                          party_id: row.partyId,
+                          from: row.from,
+                          to: row.to,
+                          bill_date: row.billDate,
+                          bill_no: row.billId,
+                          brokerage: row.brokerage,
+                        },
+                      });
+                      const html = buildPartyBillHtml(billData);
+                      const { data } = await api.post(`/billing/party-bills/${row.id}/mail`, { html });
                       toast.success(`Mail sent to ${data.to} recipient(s)`);
                       setRows(xs => xs.map(r => r.id === row.id ? { ...r, mailedAt: data.mailed_at } : r));
                     } catch (e) {

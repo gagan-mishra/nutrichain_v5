@@ -72,7 +72,7 @@ function buildPartyBillPrintHtml(data) {
 
   // Important: prevent browser print engines from repeating table footer on every page.
   const styles = `
-    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Cantarell,Noto Sans,Ubuntu,Helvetica Neue,Arial;color:#111827}
+    body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;color:#111827}
     .wrap{max-width:900px;margin:24px auto;padding:16px}
     .center{text-align:center}
     .muted{color:#6B7280}
@@ -132,13 +132,13 @@ function buildPartyBillPrintHtml(data) {
   const totalsRows = `
         <tr class="totals-row">
           <td class="label" colspan="8"><strong>Subtotal</strong></td>
-          <td style="text-align:right">${num(totals.subtotal)}</td>
+          <td style="text-align:right">${inr(totals.subtotal)}</td>
         </tr>
         ${taxes.join('')}
         <tr class="totals-row">
           <td colspan="6" style="border:none"></td>
           <td class="label" colspan="2"><strong>Total</strong></td>
-          <td style="text-align:right">${num(totals.total)}</td>
+          <td style="text-align:right">${inr(totals.total)}</td>
         </tr>
         <tr class="totals-row">
           <td colspan="9" style="border:none;padding-top:8px">
@@ -185,6 +185,10 @@ function buildPartyBillPrintHtml(data) {
   </div>
 </body>
 </html>`;
+}
+
+function inr(v) {
+  return `₹ ${num(v)}`;
 }
 
 module.exports = { buildPartyBillPrintHtml };

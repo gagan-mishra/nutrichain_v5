@@ -4,7 +4,7 @@ export function buildPartyBillHtml(data) {
   const party = meta.party || {};
 
   const styles = `
-  body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Cantarell, Noto Sans, Ubuntu, Helvetica Neue, Arial; color: #111827; }
+  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #111827; }
   .wrap { max-width: 900px; margin: 24px auto; padding: 16px; }
   .center { text-align: center; }
   .muted { color: #6B7280; }
@@ -62,12 +62,12 @@ export function buildPartyBillHtml(data) {
 
   const totalWords = amountToWordsIndian(totals.total || 0);
   const totalsRows = `
-    <tr class="totals-row"><td class="label" colspan="8"><strong>Subtotal</strong></td><td style="text-align:right;">${num(totals.subtotal)}</td></tr>
+    <tr class="totals-row"><td class="label" colspan="8"><strong>Subtotal</strong></td><td style="text-align:right;">${inr(totals.subtotal)}</td></tr>
     ${taxRows.join('')}
     <tr class="totals-row">
       <td colspan="6" style="border:none"></td>
       <td class="label" colspan="2"><strong>Total</strong></td>
-      <td style="text-align:right;">${num(totals.total)}</td>
+      <td style="text-align:right;">${inr(totals.total)}</td>
     </tr>
     <tr class="totals-row">
       <td colspan="9" style="border:none; padding-top:8px"><em>Amount in words:</em> <strong>${escapeHtml(totalWords)}</strong></td>
@@ -215,6 +215,7 @@ function fmtDMY(iso) {
   return `${dd}/${mm}/${yy}`;
 }
 function num(v) { return (Number(v || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function inr(v) { return `₹ ${num(v)}`; }
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
 
 // ---- helpers: amount in words (Indian numbering) ----

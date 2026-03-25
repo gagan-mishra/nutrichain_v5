@@ -8,7 +8,6 @@ import {
   Card,
   Field,
   Input,
-  TextArea,
   glass,
 } from "../components/primitives";
 import ComboBox from "../components/combobox";
@@ -59,16 +58,21 @@ function OrderForm({
   sellerOptions,
   buyerOptions,
   productOptions,
+  termSuggestions,
   isEditing,
   fyStart,
   fyEnd,
 }) {
   const wrap = isEditing ? "ring-1 ring-yellow-400/40 rounded-2xl" : "";
+  const termHistory = useMemo(
+    () => (Array.isArray(termSuggestions) ? termSuggestions.slice(0, 200) : []),
+    [termSuggestions]
+  );
 
   return (
     <div className="flex flex-col gap-6">
       {/* ===== Contract & Parties ===== */}
-      <div className={wrap}>
+      <div className={`${wrap} relative z-0`}>
         <Card
           title={`Contract & Parties${isEditing ? " • Editing" : ""}`}
           actions={<span className="text-xs text-white/60">Primary</span>}
@@ -133,7 +137,7 @@ function OrderForm({
       </div>
 
       {/* ===== Logistics ===== */}
-      <div className={wrap}>
+      <div className={`${wrap} relative z-10`}>
         <Card title="Logistics">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Field label="Delivery Station">
@@ -141,7 +145,8 @@ function OrderForm({
                 value={draft.delivery_station}
                 onChange={(v) => setDraft({ ...draft, delivery_station: v })}
                 placeholder="Station/Location"
-                name="delivery_station"
+                name="station"
+                id="station"
                 autoComplete="on"
               />
             </Field>
@@ -150,7 +155,8 @@ function OrderForm({
                 value={draft.delivery_schedule}
                 onChange={(v) => setDraft({ ...draft, delivery_schedule: v })}
                 placeholder="e.g., within 7 days"
-                name="delivery_schedule"
+                name="period"
+                id="period"
                 autoComplete="on"
               />
             </Field>
@@ -168,26 +174,35 @@ function OrderForm({
                 value={draft.payment_criteria}
                 onChange={(v) => setDraft({ ...draft, payment_criteria: v })}
                 placeholder="e.g., 30% advance"
-                name="payment_criteria"
+                name="payment"
+                id="payment"
                 autoComplete="on"
               />
             </Field>
             <Field label="Terms" full>
-              <TextArea
-                value={draft.terms}
-                onChange={(v) => setDraft({ ...draft, terms: v })}
-                rows={4}
-                placeholder="Key contractual terms"
-                name="terms"
-                autoComplete="on"
-              />
+              <div>
+                <Input
+                  value={draft.terms}
+                  onChange={(v) => setDraft({ ...draft, terms: v })}
+                  placeholder="Key contractual terms"
+                  name="terms"
+                  id="terms"
+                  autoComplete="on"
+                  list="terms-history"
+                />
+                <datalist id="terms-history">
+                  {termHistory.map((t) => (
+                    <option key={t} value={t} />
+                  ))}
+                </datalist>
+              </div>
             </Field>
           </div>
         </Card>
       </div>
 
       {/* ===== Quantity & Price (Product first) ===== */}
-      <div className={wrap}>
+      <div className={`${wrap} relative z-0`}>
         <Card title="Quantity & Price">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Field label="Product">
@@ -288,7 +303,7 @@ export default function OrderConfirm() {
   const [productOptions, setProductOptions] = useState([]);
 
   // Draft + edit overlay
-  const [draft, setDraft] = useState({ status: "Open" });
+  const [draft, setDraft] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -303,6 +318,20 @@ export default function OrderConfirm() {
   // Search + sort
   const [q, setQ] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
+
+  const termSuggestions = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const rec of [...rows, ...deleted]) {
+      const t = String(rec?.terms || "").trim();
+      if (!t) continue;
+      const key = t.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+    }
+    return out;
+  }, [rows, deleted]);
 
   // Visible columns (no serial, no product)
   const columns = useMemo(
@@ -515,7 +544,7 @@ export default function OrderConfirm() {
         }
         setEditOpen(false);
         setEditingId(null);
-        setDraft({ status: "Open" });
+        setDraft({});
         await refresh(); // keep UI in sync with DB
         setTab("list");
       } else {
@@ -523,7 +552,7 @@ export default function OrderConfirm() {
         toast.success("Contract created");
         // You can either refresh or insert optimistically. Refresh keeps things simple:
         await refresh();
-        setDraft({ status: "Open" });
+        setDraft({});
         setTab("list");
       }
     } catch (e) {
@@ -698,6 +727,7 @@ export default function OrderConfirm() {
                 sellerOptions={sellerOptions}
                 buyerOptions={buyerOptions}
                 productOptions={productOptions}
+                termSuggestions={termSuggestions}
                 isEditing={false}
                 fyStart={fy?.startDate ? String(fy.startDate).slice(0, 10) : undefined}
                 fyEnd={fy?.endDate ? String(fy.endDate).slice(0, 10) : undefined}
@@ -706,7 +736,7 @@ export default function OrderConfirm() {
             <div className="mt-4 mb-24 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setDraft({ status: "Open" })}
+                onClick={() => setDraft({})}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5 ${glass}`}
               >
                 <X size={16} /> Reset
@@ -808,7 +838,7 @@ export default function OrderConfirm() {
         onClose={() => {
           setEditOpen(false);
           setEditingId(null);
-          setDraft({ status: "Open" });
+          setDraft({});
           setTab("list");
         }}
         footer={
@@ -817,7 +847,7 @@ export default function OrderConfirm() {
               onClick={() => {
                 setEditOpen(false);
                 setEditingId(null);
-                setDraft({ status: "Open" });
+                setDraft({});
                 setTab("list");
               }}
               className="rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10 border border-white/10"
@@ -840,6 +870,7 @@ export default function OrderConfirm() {
             sellerOptions={sellerOptions}
             buyerOptions={buyerOptions}
             productOptions={productOptions}
+            termSuggestions={termSuggestions}
             isEditing
             fyStart={fy?.startDate ? String(fy.startDate).slice(0, 10) : undefined}
             fyEnd={fy?.endDate ? String(fy.endDate).slice(0, 10) : undefined}

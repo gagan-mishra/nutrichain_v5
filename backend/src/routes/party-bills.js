@@ -413,12 +413,16 @@ router.get('/:id/summary', async (req, res) => {
          AND (c.seller_id = ? OR c.buyer_id = ?)`;
     const [rows] = await pool.execute(sql, params);
 
-    const overrideRate = Number(bill.brokerage || 0) || null;
+    const overrideRate = bill.brokerage != null && bill.brokerage !== ''
+      ? Number(bill.brokerage)
+      : null;
     let subtotal = 0;
     for (const r of rows) {
       const role = r.seller_id === bill.party_id ? 'SELLER' : 'BUYER';
       const qty = (r.max_qty ?? r.min_qty ?? 0) || 0;
-      const rate = overrideRate != null ? overrideRate : (role === 'SELLER' ? (r.seller_brokerage || DEFAULT_BROKERAGE) : (r.buyer_brokerage || DEFAULT_BROKERAGE));
+      const rate = (overrideRate != null && !Number.isNaN(overrideRate))
+        ? overrideRate
+        : (role === 'SELLER' ? (r.seller_brokerage || DEFAULT_BROKERAGE) : (r.buyer_brokerage || DEFAULT_BROKERAGE));
       subtotal += Number(qty) * Number(rate);
     }
     let cgst = 0, sgst = 0, igst = 0;
@@ -495,12 +499,16 @@ router.post('/:id/mail', async (req, res) => {
        ORDER BY c.order_date ASC, c.id ASC`;
     const [rows] = await pool.execute(sql, params);
 
-    const overrideRate = Number(bill.brokerage || 0);
+    const overrideRate = bill.brokerage != null && bill.brokerage !== ''
+      ? Number(bill.brokerage)
+      : null;
     const items = rows.map((r, idx) => {
       const role = r.seller_id === bill.party_id ? 'SELLER' : 'BUYER';
       const otherParty = role === 'SELLER' ? r.buyer_name : r.seller_name;
       const qty = (r.max_qty ?? r.min_qty ?? 0);
-      const rate = overrideRate || (role === 'SELLER' ? (r.seller_brokerage || DEFAULT_BROKERAGE) : (r.buyer_brokerage || DEFAULT_BROKERAGE));
+      const rate = (overrideRate != null && !Number.isNaN(overrideRate))
+        ? overrideRate
+        : (role === 'SELLER' ? (r.seller_brokerage || DEFAULT_BROKERAGE) : (r.buyer_brokerage || DEFAULT_BROKERAGE));
       const amount = Number(qty) * Number(rate);
       return {
         sr: idx + 1,

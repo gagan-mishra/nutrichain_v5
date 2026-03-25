@@ -13,7 +13,7 @@ function fmtDMY(iso) {
 }
 
 function num(v) {
-  return Number(v || 0).toLocaleString(undefined, {
+  return Number(v || 0).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -62,7 +62,7 @@ function amountToWordsIndian(n) {
 
   return [sec(crore, 'Crore'), sec(lakh, 'Lakh'), sec(thousand, 'Thousand'), three(n)]
     .filter(Boolean)
-    .join(' ') + ' Only';
+    .join(' ') + ' Rupees Only';
 }
 
 function buildPartyBillPrintHtml(data) {
@@ -80,6 +80,7 @@ function buildPartyBillPrintHtml(data) {
     th,td{border:1px solid #E5E7EB;padding:6px 8px;font-size:12px}
     th{background:#F3F4F6;text-align:left}
     .totals-row td{border:none}
+    .totals-row .label{text-align:right}
   `;
 
   const header = `
@@ -92,8 +93,8 @@ function buildPartyBillPrintHtml(data) {
   const metaHtml = `
     <div style="display:flex;justify-content:space-between;margin:10px 0 6px 0;font-size:12px">
       <div>
-        <div><strong>Bill No:</strong> ${escapeHtml(meta.bill_no || '-')}</div>
-        <div><strong>From:</strong> ${fmtDMY(meta.from)} &nbsp; <strong>To:</strong> ${fmtDMY(meta.to)}</div>
+        <div><strong>Bill No:</strong> ${escapeHtml(meta.bill_no || '—')}</div>
+        <div><strong>From:</strong> ${fmtDMY(meta.from)} &nbsp;&nbsp; <strong>To:</strong> ${fmtDMY(meta.to)}</div>
       </div>
       <div><strong>Date:</strong> ${fmtDMY(meta.bill_date)}</div>
     </div>

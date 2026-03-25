@@ -72,7 +72,7 @@ function buildPartyBillPrintHtml(data) {
 
   // Important: prevent browser print engines from repeating table footer on every page.
   const styles = `
-    body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;color:#111827}
+    body{font-family:"Noto Sans","DejaVu Sans","Arial Unicode MS","Segoe UI Symbol","Segoe UI",Arial,Helvetica,sans-serif;color:#111827}
     .wrap{max-width:900px;margin:24px auto;padding:16px}
     .center{text-align:center}
     .muted{color:#6B7280}
@@ -124,9 +124,9 @@ function buildPartyBillPrintHtml(data) {
   const sg = Number(party.sgst_rate || 0);
   const ig = Number(party.igst_rate || 0);
   const taxes = [];
-  if ((totals.cgst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right">${num(totals.cgst)}</td></tr>`);
-  if ((totals.sgst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right">${num(totals.sgst)}</td></tr>`);
-  if ((totals.igst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right">${num(totals.igst)}</td></tr>`);
+  if ((totals.cgst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right">${inr(totals.cgst)}</td></tr>`);
+  if ((totals.sgst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right">${inr(totals.sgst)}</td></tr>`);
+  if ((totals.igst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right">${inr(totals.igst)}</td></tr>`);
 
   const words = amountToWordsIndian(totals.total || 0);
   const totalsRows = `
@@ -188,7 +188,7 @@ function buildPartyBillPrintHtml(data) {
 }
 
 function inr(v) {
-  return `₹ ${num(v)}`;
+  return `&#8377; ${num(v)}`;
 }
 
 module.exports = { buildPartyBillPrintHtml };

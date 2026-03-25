@@ -4,7 +4,7 @@ export function buildPartyBillHtml(data) {
   const party = meta.party || {};
 
   const styles = `
-  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #111827; }
+  body { font-family: "Noto Sans", "DejaVu Sans", "Arial Unicode MS", "Segoe UI Symbol", "Segoe UI", Arial, Helvetica, sans-serif; color: #111827; }
   .wrap { max-width: 900px; margin: 24px auto; padding: 16px; }
   .center { text-align: center; }
   .muted { color: #6B7280; }
@@ -56,9 +56,9 @@ export function buildPartyBillHtml(data) {
   const cg = Number(party.cgst_rate || 0);
   const sg = Number(party.sgst_rate || 0);
   const ig = Number(party.igst_rate || 0);
-  if ((totals.cgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.cgst)}</td></tr>`);
-  if ((totals.sgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.sgst)}</td></tr>`);
-  if ((totals.igst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right;">${num(totals.igst)}</td></tr>`);
+  if ((totals.cgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right;">${inr(totals.cgst)}</td></tr>`);
+  if ((totals.sgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right;">${inr(totals.sgst)}</td></tr>`);
+  if ((totals.igst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right;">${inr(totals.igst)}</td></tr>`);
 
   const totalWords = amountToWordsIndian(totals.total || 0);
   const totalsRows = `
@@ -215,7 +215,7 @@ function fmtDMY(iso) {
   return `${dd}/${mm}/${yy}`;
 }
 function num(v) { return (Number(v || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function inr(v) { return `₹ ${num(v)}`; }
+function inr(v) { return `&#8377; ${num(v)}`; }
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
 
 // ---- helpers: amount in words (Indian numbering) ----

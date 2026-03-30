@@ -3,7 +3,8 @@ export function buildPartyBillHtml(data) {
   const firm = meta.firm || {};
   const party = meta.party || {};
 
-  const styles = `
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&display=swap');
   body { font-family: "Noto Sans", "DejaVu Sans", "Arial Unicode MS", "Segoe UI Symbol", "Segoe UI", Arial, Helvetica, sans-serif; color: #111827; }
   .wrap { max-width: 900px; margin: 24px auto; padding: 16px; }
   .center { text-align: center; }
@@ -13,6 +14,9 @@ export function buildPartyBillHtml(data) {
   th { background: #F3F4F6; text-align: left; }
   .totals-row td { border: none; }
   .totals-row .label { text-align: right; }
+  .money { display: inline-flex; align-items: baseline; gap: .16em; white-space: nowrap; }
+  .money .rs { font-family: "Noto Sans", "Segoe UI Symbol", "Arial Unicode MS", "Nirmala UI", sans-serif; line-height: 1; }
+  .money .amt { font-variant-numeric: tabular-nums; }
   `;
 
   const firmHeader = `
@@ -215,7 +219,7 @@ function fmtDMY(iso) {
   return `${dd}/${mm}/${yy}`;
 }
 function num(v) { return (Number(v || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function inr(v) { return `&#8377; ${num(v)}`; }
+function inr(v) { return `<span class="money"><span class="rs">&#8377;</span><span class="amt">${num(v)}</span></span>`; }
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
 
 // ---- helpers: amount in words (Indian numbering) ----

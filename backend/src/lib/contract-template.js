@@ -333,8 +333,10 @@ function buildContractPrintHtml(input) {
     order_date: row.order_date ?? "",
     seller_name: row.seller_name ?? "",
     seller_address: row.seller_address ?? "",
+    seller_gst_no: row.seller_gst_no ?? "",
     buyer_name: row.buyer_name ?? "",
     buyer_address: row.buyer_address ?? "",
+    buyer_gst_no: row.buyer_gst_no ?? "",
     product_name: row.product_name ?? "",
     min_qty: row.min_qty ?? "",
     max_qty: row.max_qty ?? "",
@@ -392,6 +394,7 @@ function buildContractPrintHtml(input) {
   .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:10px 0 14px }
   .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; min-height:54px }
   .card .h { font-weight:700; margin-bottom:6px }
+  .card .meta { margin-top:4px; font-size:11px; color:var(--muted) }
   .card .addr { margin-top:4px }
   table.kv { width:100%; border-collapse:separate; border-spacing:0; margin-top:6px; border:1px solid var(--line); border-radius:8px; overflow:hidden }
   .kv th, .kv td { padding:8px 10px; vertical-align:top; border-bottom:1px solid var(--line) }
@@ -439,11 +442,13 @@ function buildContractPrintHtml(input) {
       <div class="card">
         <div class="h">Seller</div>
         <div>${esc(c.seller_name)}</div>
+        ${c.seller_gst_no ? `<div class="meta"><strong>GSTIN:</strong> ${esc(c.seller_gst_no)}</div>` : ""}
         ${c.seller_address ? `<div class="addr">${esc(c.seller_address)}</div>` : ""}
       </div>
       <div class="card">
         <div class="h">Buyer</div>
         <div>${esc(c.buyer_name)}</div>
+        ${c.buyer_gst_no ? `<div class="meta"><strong>GSTIN:</strong> ${esc(c.buyer_gst_no)}</div>` : ""}
         ${c.buyer_address ? `<div class="addr">${esc(c.buyer_address)}</div>` : ""}
       </div>
     </div>

@@ -260,8 +260,8 @@ router.get("/:id/print", async (req, res) => {
     const sql = `
       SELECT
         c.*,
-        s.name AS seller_name, s.address AS seller_address, s.contact AS seller_contact,
-        b.name AS buyer_name, b.address AS buyer_address, b.contact AS buyer_contact,
+        s.name AS seller_name, s.address AS seller_address, s.contact AS seller_contact, s.gst_no AS seller_gst_no,
+        b.name AS buyer_name, b.address AS buyer_address, b.contact AS buyer_contact, b.gst_no AS buyer_gst_no,
         p.name AS product_name, p.unit AS product_unit,
         f.name AS firm_name,
         f.address AS firm_address
@@ -296,8 +296,8 @@ router.post("/:id/mail", async (req, res) => {
     const sql = `
       SELECT
         c.*,
-        s.name AS seller_name, s.address AS seller_address, s.contact AS seller_contact,
-        b.name AS buyer_name,  b.address AS buyer_address,  b.contact AS buyer_contact,
+        s.name AS seller_name, s.address AS seller_address, s.contact AS seller_contact, s.gst_no AS seller_gst_no,
+        b.name AS buyer_name,  b.address AS buyer_address,  b.contact AS buyer_contact, b.gst_no AS buyer_gst_no,
         p.name AS product_name, p.unit AS product_unit,
         f.name AS firm_name, f.address AS firm_address,
         GROUP_CONCAT(DISTINCT se.email) AS seller_emails,

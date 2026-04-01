@@ -7,6 +7,7 @@ import Login from "./pages/Login.jsx";
 import FirmRegistration from "./pages/CompanyRegistration.jsx";
 import PartyBill from "./pages/PartyBill.jsx";
 import BillReceive from "./pages/BillReceive.jsx";
+import PartyLedger from "./pages/PartyLedger.jsx";
 import ReportsParty from "./pages/ReportsParty.jsx";
 import ReportsSales from "./pages/ReportsSales.jsx";
 import ReportsProduct from "./pages/ReportsProduct.jsx";
@@ -46,6 +47,10 @@ export default function App() {
       <Route
         path="/sales/bill-receive"
         element={<Private><BillReceive /></Private>}
+      />
+      <Route
+        path="/sales/party-ledger"
+        element={<Private><PartyLedger /></Private>}
       />
       <Route
         path="/reports/party"

@@ -12,6 +12,7 @@ const parties = require('./routes/parties');
 const contracts = require('./routes/contracts');
 const productsRouter = require('./routes/products');
 const partyBills = require('./routes/party-bills');
+const partyLedger = require('./routes/party-ledger');
 const reports = require('./routes/reports');
 
 const app = express();
@@ -76,6 +77,7 @@ app.use('/contracts', contracts);
 app.use('/products', productsRouter);
 app.use('/billing/party-bills', partyBills);
 app.use('/party-bills', partyBills);
+app.use('/billing/party-ledger', partyLedger);
 app.use('/reports', reports);
 
 module.exports = app;

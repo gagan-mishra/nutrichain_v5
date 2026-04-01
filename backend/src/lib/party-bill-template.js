@@ -29,6 +29,16 @@ function escapeHtml(s) {
   }[c]));
 }
 
+function qtyTotalDisplay(items) {
+  let total = 0;
+  for (const it of (items || [])) {
+    const qty = Number(it?.qty || 0);
+    if (!Number.isFinite(qty)) continue;
+    total += qty;
+  }
+  return `${num(total)} M.T.`;
+}
+
 function amountToWordsIndian(n) {
   const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -80,8 +90,12 @@ function buildPartyBillPrintHtml(data) {
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #E5E7EB;padding:6px 8px;font-size:12px}
     th{background:#F3F4F6;text-align:left}
-    .totals-row td{border:none}
-    .totals-row .label{text-align:right}
+    .totals-wrap{margin-top:10px;margin-left:auto;max-width:420px;break-inside:avoid-page;page-break-inside:avoid}
+    .totals-table{width:100%;border-collapse:collapse}
+    .totals-table td{border:none;padding:4px 0;font-size:12px}
+    .totals-table .label{text-align:right;padding-right:10px}
+    .totals-table .value{text-align:right;white-space:nowrap}
+    .amount-words{margin-top:8px;font-size:12px;text-align:left}
     .money{display:inline-flex;align-items:baseline;gap:.16em;white-space:nowrap}
     .money .rs{font-family:"Noto Sans","Segoe UI Symbol","Arial Unicode MS","Nirmala UI",sans-serif;line-height:1}
     .money .amt{font-variant-numeric:tabular-nums}
@@ -128,28 +142,32 @@ function buildPartyBillPrintHtml(data) {
   const sg = Number(party.sgst_rate || 0);
   const ig = Number(party.igst_rate || 0);
   const taxes = [];
-  if ((totals.cgst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right">${inr(totals.cgst)}</td></tr>`);
-  if ((totals.sgst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right">${inr(totals.sgst)}</td></tr>`);
-  if ((totals.igst || 0) > 0) taxes.push(`<tr class="totals-row"><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right">${inr(totals.igst)}</td></tr>`);
+  if ((totals.cgst || 0) > 0) taxes.push(`<tr><td class="label">CGST (${cg.toFixed(0)}%)</td><td class="value">${inr(totals.cgst)}</td></tr>`);
+  if ((totals.sgst || 0) > 0) taxes.push(`<tr><td class="label">SGST (${sg.toFixed(0)}%)</td><td class="value">${inr(totals.sgst)}</td></tr>`);
+  if ((totals.igst || 0) > 0) taxes.push(`<tr><td class="label">IGST (${ig.toFixed(0)}%)</td><td class="value">${inr(totals.igst)}</td></tr>`);
 
+  const totalQty = qtyTotalDisplay(items);
   const words = amountToWordsIndian(totals.total || 0);
-  const totalsRows = `
-        <tr class="totals-row">
-          <td class="label" colspan="8"><strong>Subtotal</strong></td>
-          <td style="text-align:right">${inr(totals.subtotal)}</td>
+  const totalsBlock = `
+    <div class="totals-wrap">
+      <table class="totals-table">
+        <tr>
+          <td class="label"><strong>Total Qty</strong></td>
+          <td class="value">${escapeHtml(totalQty)}</td>
+        </tr>
+        <tr>
+          <td class="label"><strong>Subtotal</strong></td>
+          <td class="value">${inr(totals.subtotal)}</td>
         </tr>
         ${taxes.join('')}
-        <tr class="totals-row">
-          <td colspan="6" style="border:none"></td>
-          <td class="label" colspan="2"><strong>Total</strong></td>
-          <td style="text-align:right">${inr(totals.total)}</td>
+        <tr>
+          <td class="label"><strong>Total</strong></td>
+          <td class="value"><strong>${inr(totals.total)}</strong></td>
         </tr>
-        <tr class="totals-row">
-          <td colspan="9" style="border:none;padding-top:8px">
-            <em>Amount in words:</em> <strong>${escapeHtml(words)}</strong>
-          </td>
-        </tr>
+      </table>
+    </div>
   `;
+  const wordsBlock = `<div class="amount-words"><em>Amount in words:</em> <strong>${escapeHtml(words)}</strong></div>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -176,8 +194,10 @@ function buildPartyBillPrintHtml(data) {
           <th>Amount</th>
         </tr>
       </thead>
-      <tbody>${rows}${totalsRows}</tbody>
+      <tbody>${rows}</tbody>
     </table>
+    ${totalsBlock}
+    ${wordsBlock}
 
     <div style="display:flex;justify-content:space-between;margin-top:40px;font-size:12px">
       <div><strong>${escapeHtml(firm.name || '')}</strong></div>

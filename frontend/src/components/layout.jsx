@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+ï»¿import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -140,6 +140,7 @@ export function AppShell({
           { key: "order-confirm", label: "Order Confirm", path: "/sales/order-confirm", icon: <ClipboardList size={16} /> },
           { key: "party-bill",    label: "Party Bill",    path: "/sales/party-bill",    icon: <ReceiptText size={16} /> },
           { key: "bill-receive",  label: "Bill Receive",  path: "/sales/bill-receive",  icon: <Banknote size={16} /> },
+          { key: "party-ledger",  label: "Party Ledger",  path: "/sales/party-ledger",  icon: <ReceiptText size={16} /> },
         ],
       },
       {
@@ -305,10 +306,10 @@ export function AppShell({
           </div>
           <div className="hidden md:flex items-center gap-2">
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
-              Firm: <strong className="ml-1 text-white">{firm?.name || "—"}</strong>
+              Firm: <strong className="ml-1 text-white">{firm?.name || "â€”"}</strong>
             </span>
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
-              FY: <strong className="ml-1 text-white">{displayFy?.label || "—"}</strong>
+              FY: <strong className="ml-1 text-white">{displayFy?.label || "â€”"}</strong>
             </span>
           </div>
         </div>
@@ -407,6 +408,7 @@ function labelFromKey(key) {
     "order-confirm": "Order Confirm",
     "party-bill": "Party Bill",
     "bill-receive": "Bill Receive",
+    "party-ledger": "Party Ledger",
     "party-reports": "Party Reports",
     "sales-report": "Sales Report",
     "product-report": "Product Report",
@@ -421,4 +423,6 @@ function labelFromKey(key) {
   };
   return map[key] || key;
 }
+
+
 

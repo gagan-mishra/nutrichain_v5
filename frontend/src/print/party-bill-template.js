@@ -12,8 +12,12 @@ const styles = `
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #E5E7EB; padding: 6px 8px; font-size: 12px; }
   th { background: #F3F4F6; text-align: left; }
-  .totals-row td { border: none; }
-  .totals-row .label { text-align: right; }
+  .totals-wrap { margin-top: 10px; margin-left: auto; max-width: 420px; break-inside: avoid-page; page-break-inside: avoid; }
+  .totals-table { width: 100%; border-collapse: collapse; }
+  .totals-table td { border: none; padding: 4px 0; font-size: 12px; }
+  .totals-table .label { text-align: right; padding-right: 10px; }
+  .totals-table .value { text-align: right; white-space: nowrap; }
+  .amount-words { margin-top: 8px; font-size: 12px; text-align: left; }
   .money { display: inline-flex; align-items: baseline; gap: .16em; white-space: nowrap; }
   .money .rs { font-family: "Noto Sans", "Segoe UI Symbol", "Arial Unicode MS", "Nirmala UI", sans-serif; line-height: 1; }
   .money .amt { font-variant-numeric: tabular-nums; }
@@ -60,23 +64,32 @@ const styles = `
   const cg = Number(party.cgst_rate || 0);
   const sg = Number(party.sgst_rate || 0);
   const ig = Number(party.igst_rate || 0);
-  if ((totals.cgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">CGST (${cg.toFixed(0)}%)</td><td style="text-align:right;">${inr(totals.cgst)}</td></tr>`);
-  if ((totals.sgst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">SGST (${sg.toFixed(0)}%)</td><td style="text-align:right;">${inr(totals.sgst)}</td></tr>`);
-  if ((totals.igst || 0) > 0) taxRows.push(`<tr class="totals-row"><td class="label" colspan="8">IGST (${ig.toFixed(0)}%)</td><td style="text-align:right;">${inr(totals.igst)}</td></tr>`);
+  if ((totals.cgst || 0) > 0) taxRows.push(`<tr><td class="label">CGST (${cg.toFixed(0)}%)</td><td class="value">${inr(totals.cgst)}</td></tr>`);
+  if ((totals.sgst || 0) > 0) taxRows.push(`<tr><td class="label">SGST (${sg.toFixed(0)}%)</td><td class="value">${inr(totals.sgst)}</td></tr>`);
+  if ((totals.igst || 0) > 0) taxRows.push(`<tr><td class="label">IGST (${ig.toFixed(0)}%)</td><td class="value">${inr(totals.igst)}</td></tr>`);
 
+  const totalQty = qtyTotalDisplay(items);
   const totalWords = amountToWordsIndian(totals.total || 0);
-  const totalsRows = `
-    <tr class="totals-row"><td class="label" colspan="8"><strong>Subtotal</strong></td><td style="text-align:right;">${inr(totals.subtotal)}</td></tr>
-    ${taxRows.join('')}
-    <tr class="totals-row">
-      <td colspan="6" style="border:none"></td>
-      <td class="label" colspan="2"><strong>Total</strong></td>
-      <td style="text-align:right;">${inr(totals.total)}</td>
-    </tr>
-    <tr class="totals-row">
-      <td colspan="9" style="border:none; padding-top:8px"><em>Amount in words:</em> <strong>${escapeHtml(totalWords)}</strong></td>
-    </tr>
+  const totalsBlock = `
+    <div class="totals-wrap">
+      <table class="totals-table">
+        <tr>
+          <td class="label"><strong>Total Qty</strong></td>
+          <td class="value">${escapeHtml(totalQty)}</td>
+        </tr>
+        <tr>
+          <td class="label"><strong>Subtotal</strong></td>
+          <td class="value">${inr(totals.subtotal)}</td>
+        </tr>
+        ${taxRows.join('')}
+        <tr>
+          <td class="label"><strong>Total</strong></td>
+          <td class="value"><strong>${inr(totals.total)}</strong></td>
+        </tr>
+      </table>
+    </div>
   `;
+  const wordsBlock = `<div class="amount-words"><em>Amount in words:</em> <strong>${escapeHtml(totalWords)}</strong></div>`;
   const html = `
   <html>
     <head>
@@ -102,8 +115,10 @@ const styles = `
               <th>Amount</th>
             </tr>
           </thead>
-          <tbody>${rows}${totalsRows}</tbody>
+          <tbody>${rows}</tbody>
         </table>
+        ${totalsBlock}
+        ${wordsBlock}
 
         <div style="display:flex; justify-content:space-between; margin-top:40px; font-size:12px;">
           <div><strong>${escapeHtml(firm.name || '')}</strong></div>
@@ -147,6 +162,7 @@ export function buildPartyBillExcelHtml(data) {
   if ((totals.sgst || 0) > 0) taxRows.push(`<tr><td colspan="8" style="text-align:right">SGST (${sg.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.sgst)}</td></tr>`);
   if ((totals.igst || 0) > 0) taxRows.push(`<tr><td colspan="8" style="text-align:right">IGST (${ig.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.igst)}</td></tr>`);
 
+  const totalQty = qtyTotalDisplay(items);
   const totalWords = amountToWordsIndian(totals.total || 0);
   return `<!DOCTYPE html>
   <html><head><meta charset="utf-8" />
@@ -187,6 +203,7 @@ export function buildPartyBillExcelHtml(data) {
         <th>Amount</th>
       </tr>
       ${rows}
+      <tr><td colspan="8" align="right"><b>Total Qty</b></td><td style="text-align:right">${escapeHtml(totalQty)}</td></tr>
       <tr><td colspan="8" align="right"><b>Subtotal</b></td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.subtotal || 0)}</td></tr>
       ${taxRows.join('')}
       <tr><td colspan="6"></td><td colspan="2" align="right"><b>Total</b></td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.total || 0)}</td></tr>
@@ -221,6 +238,15 @@ function fmtDMY(iso) {
 function num(v) { return (Number(v || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function inr(v) { return `<span class="money"><span class="rs">&#8377;</span><span class="amt">${num(v)}</span></span>`; }
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+function qtyTotalDisplay(items) {
+  let total = 0;
+  for (const it of (items || [])) {
+    const qty = Number(it?.qty || 0);
+    if (!Number.isFinite(qty)) continue;
+    total += qty;
+  }
+  return `${num(total)} M.T.`;
+}
 
 // ---- helpers: amount in words (Indian numbering) ----
 function amountToWordsIndian(n) {

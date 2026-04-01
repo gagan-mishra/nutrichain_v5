@@ -1,8 +1,8 @@
 const app = require('./app');
-const puppeteer = require('puppeteer');
 const { startBillingCron } = require('./jobs/billing-cron');
 const { startFyEnsureCron } = require('./jobs/fy-ensure');
 const { validateStartupSecurity } = require('./lib/security-startup');
+const { checkPdfEngineReady, closePdfBrowser } = require('./lib/pdf-renderer');
 
 validateStartupSecurity();
 
@@ -17,10 +17,19 @@ startFyEnsureCron();
 // Optional readiness: verify Puppeteer can launch (for printing/emailing bills)
 (async () => {
   try {
-    const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    await browser.close();
+    await checkPdfEngineReady();
     console.log('Puppeteer ready');
   } catch (e) {
     console.warn('Puppeteer launch failed. PDF/email features may not work:', e.message);
   }
 })();
+
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.once(sig, async () => {
+    try {
+      await closePdfBrowser();
+    } finally {
+      process.exit(0);
+    }
+  });
+}

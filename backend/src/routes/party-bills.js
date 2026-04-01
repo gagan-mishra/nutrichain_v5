@@ -2,10 +2,10 @@ const express = require('express');
 const { pool } = require('../lib/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireContext } = require('../middleware/context');
-const puppeteer = require('puppeteer');
 const { buildPartyBillPrintHtml } = require('../lib/party-bill-template');
 const { sendMail } = require('../lib/mailer');
 const { allocateNextBillNo, withBillNoTransaction } = require('../lib/bill-number-sequence');
+const { renderPdfFromHtml } = require('../lib/pdf-renderer');
 
 const router = express.Router();
 router.use(requireAuth, requireContext);
@@ -552,12 +552,11 @@ router.post('/:id/mail', async (req, res) => {
 
     const htmlOverride = typeof req.body?.html === 'string' ? req.body.html.trim() : '';
     const html = htmlOverride || buildPartyBillPrintHtml(payload);
-    const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox'] });
-    let pdf; try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top:'10mm', right:'10mm', bottom:'10mm', left:'10mm' } });
-    } finally { await browser.close(); }
+    const pdf = await renderPdfFromHtml(html, {
+      format: 'A4',
+      printBackground: true,
+      margin: { top:'10mm', right:'10mm', bottom:'10mm', left:'10mm' }
+    });
     if (!pdf || pdf.length === 0) {
       return res.status(500).json({ error: 'Failed to generate PDF attachment' });
     }

@@ -12,9 +12,11 @@ const styles = `
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #E5E7EB; padding: 6px 8px; font-size: 12px; }
   th { background: #F3F4F6; text-align: left; }
+  thead { display: table-header-group; }
+  tbody tr { break-inside: avoid-page; page-break-inside: avoid; }
   .totals-wrap { margin-top: 10px; margin-left: auto; max-width: 420px; break-inside: avoid-page; page-break-inside: avoid; }
   .totals-table { width: 100%; border-collapse: collapse; }
-  .totals-table td { border: none; padding: 4px 0; font-size: 12px; }
+  .totals-table td { border: none; padding: 2px 0; font-size: 12px; line-height: 1.2; }
   .totals-table .label { text-align: right; padding-right: 10px; }
   .totals-table .value { text-align: right; white-space: nowrap; }
   .amount-words { margin-top: 8px; font-size: 12px; text-align: left; }
@@ -33,7 +35,7 @@ const styles = `
   const billMeta = `
     <div style="display:flex; justify-content:space-between; margin:10px 0 6px 0; font-size:12px;">
       <div>
-        <div><strong>Bill No:</strong> ${escapeHtml(meta.bill_no || '—')}</div>
+        <div><strong>Bill No:</strong> ${escapeHtml(meta.bill_no || '-')}</div>
         <div><strong>From:</strong> ${fmtDMY(meta.from)} &nbsp;&nbsp; <strong>To:</strong> ${fmtDMY(meta.to)}</div>
       </div>
       <div>
@@ -43,6 +45,7 @@ const styles = `
     <div style="font-size:12px; margin-bottom:8px;">
       <strong>Party:</strong> ${escapeHtml(party.name || '')}
       ${firm.gst_no && party.gst_no ? `&nbsp;&nbsp; <strong>GSTIN:</strong> ${escapeHtml(party.gst_no)}` : ''}
+      ${party.address ? `<br/><strong>Address:</strong> ${escapeHtml(party.address)}` : ''}
     </div>
   `;
 
@@ -55,6 +58,7 @@ const styles = `
       <td>${escapeHtml(r.product || '')}</td>
       <td style="text-align:right;">${num(r.qty)}</td>
       <td>${escapeHtml(r.unit || '')}</td>
+      <td style="text-align:right;">${r.price == null ? '' : num(r.price)}</td>
       <td style="text-align:right;">${num(r.brokerage_rate)}</td>
       <td style="text-align:right;">${num(r.amount)}</td>
     </tr>
@@ -111,6 +115,7 @@ const styles = `
               <th>Product</th>
               <th>Qty</th>
               <th>Unit</th>
+              <th>Price</th>
               <th>Brokerage</th>
               <th>Amount</th>
             </tr>
@@ -148,6 +153,7 @@ export function buildPartyBillExcelHtml(data) {
       <td>${escapeHtml(r.product || '')}</td>
       <td style="mso-number-format:'0.00'; text-align:right">${Number(r.qty || 0)}</td>
       <td>${escapeHtml(r.unit || '')}</td>
+      <td style="mso-number-format:'0.00'; text-align:right">${r.price == null ? '' : Number(r.price)}</td>
       <td style="mso-number-format:'0.00'; text-align:right">${Number(r.brokerage_rate || 0)}</td>
       <td style="mso-number-format:'0.00'; text-align:right">${Number(r.amount || 0)}</td>
     </tr>`
@@ -158,9 +164,9 @@ export function buildPartyBillExcelHtml(data) {
   const ig = Number(party.igst_rate || 0);
 
   const taxRows = [];
-  if ((totals.cgst || 0) > 0) taxRows.push(`<tr><td colspan="8" style="text-align:right">CGST (${cg.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.cgst)}</td></tr>`);
-  if ((totals.sgst || 0) > 0) taxRows.push(`<tr><td colspan="8" style="text-align:right">SGST (${sg.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.sgst)}</td></tr>`);
-  if ((totals.igst || 0) > 0) taxRows.push(`<tr><td colspan="8" style="text-align:right">IGST (${ig.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.igst)}</td></tr>`);
+  if ((totals.cgst || 0) > 0) taxRows.push(`<tr><td colspan="9" style="text-align:right">CGST (${cg.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.cgst)}</td></tr>`);
+  if ((totals.sgst || 0) > 0) taxRows.push(`<tr><td colspan="9" style="text-align:right">SGST (${sg.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.sgst)}</td></tr>`);
+  if ((totals.igst || 0) > 0) taxRows.push(`<tr><td colspan="9" style="text-align:right">IGST (${ig.toFixed(0)}%)</td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.igst)}</td></tr>`);
 
   const totalQty = qtyTotalDisplay(items);
   const totalWords = amountToWordsIndian(totals.total || 0);
@@ -174,19 +180,19 @@ export function buildPartyBillExcelHtml(data) {
   </head>
   <body>
     <table>
-      <tr><td colspan="9" align="center" style="font-weight:bold; font-size:16px">Trade Brokerage Statement</td></tr>
-      <tr><td colspan="9" align="center" style="font-weight:bold">${escapeHtml(firm.name || '')}</td></tr>
-      ${firm.gst_no ? `<tr><td colspan="9" align="center">GSTIN: ${escapeHtml(firm.gst_no)}</td></tr>` : ''}
-      ${firm.address ? `<tr><td colspan="9" align="center">${escapeHtml(firm.address)}</td></tr>` : ''}
+      <tr><td colspan="10" align="center" style="font-weight:bold; font-size:16px">Trade Brokerage Statement</td></tr>
+      <tr><td colspan="10" align="center" style="font-weight:bold">${escapeHtml(firm.name || '')}</td></tr>
+      ${firm.gst_no ? `<tr><td colspan="10" align="center">GSTIN: ${escapeHtml(firm.gst_no)}</td></tr>` : ''}
+      ${firm.address ? `<tr><td colspan="10" align="center">${escapeHtml(firm.address)}</td></tr>` : ''}
       <tr>
-        <td colspan="5"><b>Bill No:</b> ${escapeHtml(meta.bill_no || '—')}</td>
+        <td colspan="6"><b>Bill No:</b> ${escapeHtml(meta.bill_no || '-')}</td>
         <td colspan="4" align="right"><b>Date:</b> ${fmtDMY(meta.bill_date)}</td>
       </tr>
       <tr>
-        <td colspan="9"><b>Party:</b> ${escapeHtml(party.name || '')} ${firm.gst_no && party.gst_no ? `&nbsp;&nbsp;<b>GSTIN:</b> ${escapeHtml(party.gst_no)}` : ''}</td>
+        <td colspan="10"><b>Party:</b> ${escapeHtml(party.name || '')} ${firm.gst_no && party.gst_no ? `&nbsp;&nbsp;<b>GSTIN:</b> ${escapeHtml(party.gst_no)}` : ''}${party.address ? `&nbsp;&nbsp;<b>Address:</b> ${escapeHtml(party.address)}` : ''}</td>
       </tr>
       <tr>
-        <td colspan="9"><b>From:</b> ${fmtDMY(meta.from)} &nbsp;&nbsp; <b>To:</b> ${fmtDMY(meta.to)}</td>
+        <td colspan="10"><b>From:</b> ${fmtDMY(meta.from)} &nbsp;&nbsp; <b>To:</b> ${fmtDMY(meta.to)}</td>
       </tr>
     </table>
     <br/>
@@ -199,15 +205,16 @@ export function buildPartyBillExcelHtml(data) {
         <th>Product</th>
         <th>Qty</th>
         <th>Unit</th>
+        <th>Price</th>
         <th>Brokerage</th>
         <th>Amount</th>
       </tr>
       ${rows}
-      <tr><td colspan="8" align="right"><b>Total Qty</b></td><td style="text-align:right">${escapeHtml(totalQty)}</td></tr>
-      <tr><td colspan="8" align="right"><b>Subtotal</b></td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.subtotal || 0)}</td></tr>
+      <tr><td colspan="9" align="right"><b>Total Qty</b></td><td style="text-align:right">${escapeHtml(totalQty)}</td></tr>
+      <tr><td colspan="9" align="right"><b>Subtotal</b></td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.subtotal || 0)}</td></tr>
       ${taxRows.join('')}
-      <tr><td colspan="6"></td><td colspan="2" align="right"><b>Total</b></td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.total || 0)}</td></tr>
-      <tr><td colspan="9"><i>Amount in words:</i> <b>${escapeHtml(totalWords)}</b></td></tr>
+      <tr><td colspan="7"></td><td colspan="2" align="right"><b>Total</b></td><td style="mso-number-format:'0.00'; text-align:right">${Number(totals.total || 0)}</td></tr>
+      <tr><td colspan="10"><i>Amount in words:</i> <b>${escapeHtml(totalWords)}</b></td></tr>
     </table>
 
     <br/>
@@ -277,3 +284,5 @@ function amountToWordsIndian(n) {
   ].filter(Boolean);
   return parts.join(' ') + ' Rupees Only';
 }
+
+

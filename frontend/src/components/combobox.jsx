@@ -97,6 +97,7 @@ export default function ComboBox({
   return (
     <div className="relative z-[1] overflow-visible">
       <button
+        type="button"
         ref={btnRef}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
@@ -180,8 +181,8 @@ export default function ComboBox({
                           setQ("");
                           // Keep focus anchored on trigger so subsequent Tab advances correctly
                           setTimeout(() => { try { btnRef.current?.focus(); } catch(_){} }, 0);
-                          e.preventDefault();
                         }
+                        e.preventDefault();
                       }
                       if (e.key === 'ArrowDown') {
                         setActiveIdx((i) => {
@@ -241,6 +242,7 @@ export default function ComboBox({
                   return (
                     <li key={o.value} data-idx={i}>
                       <button
+                        type="button"
                         onClick={() => {
                           onChange(o.value);
                           setOpen(false);

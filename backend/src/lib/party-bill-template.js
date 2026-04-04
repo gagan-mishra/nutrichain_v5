@@ -90,9 +90,11 @@ function buildPartyBillPrintHtml(data) {
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #E5E7EB;padding:6px 8px;font-size:12px}
     th{background:#F3F4F6;text-align:left}
+    thead{display:table-header-group}
+    tbody tr{break-inside:avoid-page;page-break-inside:avoid}
     .totals-wrap{margin-top:10px;margin-left:auto;max-width:420px;break-inside:avoid-page;page-break-inside:avoid}
     .totals-table{width:100%;border-collapse:collapse}
-    .totals-table td{border:none;padding:4px 0;font-size:12px}
+    .totals-table td{border:none;padding:2px 0;font-size:12px;line-height:1.2}
     .totals-table .label{text-align:right;padding-right:10px}
     .totals-table .value{text-align:right;white-space:nowrap}
     .amount-words{margin-top:8px;font-size:12px;text-align:left}
@@ -111,7 +113,7 @@ function buildPartyBillPrintHtml(data) {
   const metaHtml = `
     <div style="display:flex;justify-content:space-between;margin:10px 0 6px 0;font-size:12px">
       <div>
-        <div><strong>Bill No:</strong> ${escapeHtml(meta.bill_no || '—')}</div>
+        <div><strong>Bill No:</strong> ${escapeHtml(meta.bill_no || '-')}</div>
         <div><strong>From:</strong> ${fmtDMY(meta.from)} &nbsp;&nbsp; <strong>To:</strong> ${fmtDMY(meta.to)}</div>
       </div>
       <div><strong>Date:</strong> ${fmtDMY(meta.bill_date)}</div>
@@ -119,6 +121,7 @@ function buildPartyBillPrintHtml(data) {
     <div style="font-size:12px;margin-bottom:8px">
       <strong>Party:</strong> ${escapeHtml(party.name || '')}
       ${firm.gst_no && party.gst_no ? `&nbsp;&nbsp;<strong>GSTIN:</strong> ${escapeHtml(party.gst_no)}` : ''}
+      ${party.address ? `<br/><strong>Address:</strong> ${escapeHtml(party.address)}` : ''}
     </div>
   `;
 
@@ -132,6 +135,7 @@ function buildPartyBillPrintHtml(data) {
         <td>${escapeHtml(r.product || '')}</td>
         <td style="text-align:right">${num(r.qty)}</td>
         <td>${escapeHtml(r.unit || '')}</td>
+        <td style="text-align:right">${r.price == null ? '' : num(r.price)}</td>
         <td style="text-align:right">${num(r.brokerage_rate)}</td>
         <td style="text-align:right">${num(r.amount)}</td>
       </tr>
@@ -190,6 +194,7 @@ function buildPartyBillPrintHtml(data) {
           <th>Product</th>
           <th>Qty</th>
           <th>Unit</th>
+          <th>Price</th>
           <th>Brokerage</th>
           <th>Amount</th>
         </tr>
@@ -216,3 +221,4 @@ function inr(v) {
 }
 
 module.exports = { buildPartyBillPrintHtml };
+

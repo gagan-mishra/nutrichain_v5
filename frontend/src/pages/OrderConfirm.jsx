@@ -51,6 +51,9 @@ function fmtDMY(input) {
   return `${dd}/${mm}/${yy}`;
 }
 
+const SUGGESTION_LIMIT = 2;
+const HISTORY_LIMIT = 80;
+
 /* ---------------- forms ---------------- */
 function OrderForm({
   draft,
@@ -58,15 +61,28 @@ function OrderForm({
   sellerOptions,
   buyerOptions,
   productOptions,
-  termSuggestions,
+  fieldSuggestions,
   isEditing,
   fyStart,
   fyEnd,
 }) {
   const wrap = isEditing ? "ring-1 ring-yellow-400/40 rounded-2xl" : "";
+  const idPrefix = isEditing ? "edit" : "add";
+  const stationHistory = useMemo(
+    () => (Array.isArray(fieldSuggestions?.delivery_station) ? fieldSuggestions.delivery_station.slice(0, SUGGESTION_LIMIT) : []),
+    [fieldSuggestions]
+  );
+  const scheduleHistory = useMemo(
+    () => (Array.isArray(fieldSuggestions?.delivery_schedule) ? fieldSuggestions.delivery_schedule.slice(0, SUGGESTION_LIMIT) : []),
+    [fieldSuggestions]
+  );
+  const paymentHistory = useMemo(
+    () => (Array.isArray(fieldSuggestions?.payment_criteria) ? fieldSuggestions.payment_criteria.slice(0, SUGGESTION_LIMIT) : []),
+    [fieldSuggestions]
+  );
   const termHistory = useMemo(
-    () => (Array.isArray(termSuggestions) ? termSuggestions.slice(0, 200) : []),
-    [termSuggestions]
+    () => (Array.isArray(fieldSuggestions?.terms) ? fieldSuggestions.terms.slice(0, SUGGESTION_LIMIT) : []),
+    [fieldSuggestions]
   );
 
   return (
@@ -148,7 +164,13 @@ function OrderForm({
                 name="station"
                 id="station"
                 autoComplete="on"
+                list={`${idPrefix}-station-history`}
               />
+              <datalist id={`${idPrefix}-station-history`}>
+                {stationHistory.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Delivery Schedule">
               <Input
@@ -158,7 +180,13 @@ function OrderForm({
                 name="period"
                 id="period"
                 autoComplete="on"
+                list={`${idPrefix}-period-history`}
               />
+              <datalist id={`${idPrefix}-period-history`}>
+                {scheduleHistory.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Status">
               <Input
@@ -177,7 +205,13 @@ function OrderForm({
                 name="payment"
                 id="payment"
                 autoComplete="on"
+                list={`${idPrefix}-payment-history`}
               />
+              <datalist id={`${idPrefix}-payment-history`}>
+                {paymentHistory.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Terms" full>
               <div>
@@ -188,9 +222,9 @@ function OrderForm({
                   name="terms"
                   id="terms"
                   autoComplete="on"
-                  list="terms-history"
+                  list={`${idPrefix}-terms-history`}
                 />
-                <datalist id="terms-history">
+                <datalist id={`${idPrefix}-terms-history`}>
                   {termHistory.map((t) => (
                     <option key={t} value={t} />
                   ))}
@@ -319,19 +353,70 @@ export default function OrderConfirm() {
   const [q, setQ] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
 
-  const termSuggestions = useMemo(() => {
-    const seen = new Set();
-    const out = [];
-    for (const rec of [...rows, ...deleted]) {
-      const t = String(rec?.terms || "").trim();
-      if (!t) continue;
-      const key = t.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(t);
+  const historyStorageKey = useMemo(
+    () => `order-confirm-history:v1:${firm?.id || "global"}`,
+    [firm?.id]
+  );
+  const [localFieldHistory, setLocalFieldHistory] = useState({
+    delivery_station: [],
+    delivery_schedule: [],
+    payment_criteria: [],
+    terms: [],
+  });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(historyStorageKey);
+      if (!raw) {
+        setLocalFieldHistory({
+          delivery_station: [],
+          delivery_schedule: [],
+          payment_criteria: [],
+          terms: [],
+        });
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      setLocalFieldHistory({
+        delivery_station: Array.isArray(parsed?.delivery_station) ? parsed.delivery_station : [],
+        delivery_schedule: Array.isArray(parsed?.delivery_schedule) ? parsed.delivery_schedule : [],
+        payment_criteria: Array.isArray(parsed?.payment_criteria) ? parsed.payment_criteria : [],
+        terms: Array.isArray(parsed?.terms) ? parsed.terms : [],
+      });
+    } catch (_) {
+      setLocalFieldHistory({
+        delivery_station: [],
+        delivery_schedule: [],
+        payment_criteria: [],
+        terms: [],
+      });
+    }
+  }, [historyStorageKey]);
+
+  const fieldSuggestions = useMemo(() => {
+    const keys = ["delivery_station", "delivery_schedule", "payment_criteria", "terms"];
+    const out = {
+      delivery_station: [],
+      delivery_schedule: [],
+      payment_criteria: [],
+      terms: [],
+    };
+    for (const key of keys) {
+      const seen = new Set();
+      const push = (v) => {
+        const t = String(v || "").trim();
+        if (!t) return;
+        const nk = t.toLowerCase();
+        if (seen.has(nk)) return;
+        seen.add(nk);
+        out[key].push(t);
+      };
+      for (const rec of [...rows, ...deleted]) push(rec?.[key]);
+      for (const h of localFieldHistory?.[key] || []) push(h);
+      out[key] = out[key].slice(0, SUGGESTION_LIMIT);
     }
     return out;
-  }, [rows, deleted]);
+  }, [rows, deleted, localFieldHistory]);
 
   // Visible columns (no serial, no product)
   const columns = useMemo(
@@ -487,6 +572,31 @@ export default function OrderConfirm() {
     return options.find((o) => o.value === value)?.label || "";
   }
 
+  function rememberDraftValues(payload) {
+    const keys = ["delivery_station", "delivery_schedule", "payment_criteria", "terms"];
+    setLocalFieldHistory((prev) => {
+      const next = {
+        delivery_station: Array.isArray(prev?.delivery_station) ? [...prev.delivery_station] : [],
+        delivery_schedule: Array.isArray(prev?.delivery_schedule) ? [...prev.delivery_schedule] : [],
+        payment_criteria: Array.isArray(prev?.payment_criteria) ? [...prev.payment_criteria] : [],
+        terms: Array.isArray(prev?.terms) ? [...prev.terms] : [],
+      };
+
+      for (const key of keys) {
+        const raw = String(payload?.[key] || "").trim();
+        if (!raw) continue;
+        const lower = raw.toLowerCase();
+        next[key] = [raw, ...next[key].filter((x) => String(x || "").trim().toLowerCase() !== lower)].slice(0, HISTORY_LIMIT);
+      }
+
+      try {
+        localStorage.setItem(historyStorageKey, JSON.stringify(next));
+      } catch (_) {}
+
+      return next;
+    });
+  }
+
   /* ----------- create/update ----------- */
   async function createOrUpdate(payload) {
     const required = [
@@ -542,6 +652,7 @@ export default function OrderConfirm() {
         } else {
           toast.info("Updated (no payload)");
         }
+        rememberDraftValues(payload);
         setEditOpen(false);
         setEditingId(null);
         setDraft({});
@@ -550,6 +661,7 @@ export default function OrderConfirm() {
       } else {
         const { data: created } = await api.post("/contracts", body);
         toast.success("Contract created");
+        rememberDraftValues(payload);
         // You can either refresh or insert optimistically. Refresh keeps things simple:
         await refresh();
         setDraft({});
@@ -727,7 +839,7 @@ export default function OrderConfirm() {
                 sellerOptions={sellerOptions}
                 buyerOptions={buyerOptions}
                 productOptions={productOptions}
-                termSuggestions={termSuggestions}
+                fieldSuggestions={fieldSuggestions}
                 isEditing={false}
                 fyStart={fy?.startDate ? String(fy.startDate).slice(0, 10) : undefined}
                 fyEnd={fy?.endDate ? String(fy.endDate).slice(0, 10) : undefined}
@@ -870,7 +982,7 @@ export default function OrderConfirm() {
             sellerOptions={sellerOptions}
             buyerOptions={buyerOptions}
             productOptions={productOptions}
-            termSuggestions={termSuggestions}
+            fieldSuggestions={fieldSuggestions}
             isEditing
             fyStart={fy?.startDate ? String(fy.startDate).slice(0, 10) : undefined}
             fyEnd={fy?.endDate ? String(fy.endDate).slice(0, 10) : undefined}

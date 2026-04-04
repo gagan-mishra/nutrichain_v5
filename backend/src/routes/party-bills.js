@@ -201,7 +201,7 @@ router.get('/compute', async (req, res) => {
 
   // party info (gst + rates)
   const [[party]] = await pool.execute(
-    'SELECT id, name, gst_no, gst_type, cgst_rate, sgst_rate, igst_rate FROM parties WHERE id = ? LIMIT 1',
+    'SELECT id, name, address, gst_no, gst_type, cgst_rate, sgst_rate, igst_rate FROM parties WHERE id = ? LIMIT 1',
     [partyId]
   );
   if (!party) return res.status(400).json({ error: 'party not found' });
@@ -274,6 +274,7 @@ router.get('/compute', async (req, res) => {
       party: {
         id: party.id,
         name: party.name,
+        address: party.address || '',
         gst_no: party.gst_no || null,
         gst_type: party.gst_type || 'INTRA',
         cgst_rate: Number(party.cgst_rate || 0),
@@ -469,7 +470,7 @@ router.post('/:id/mail', async (req, res) => {
     const firmId = req.ctx.firmId;
     // Load bill
     const [[bill]] = await pool.execute(
-      `SELECT pb.*, p.name AS party_name, p.gst_no AS party_gst, p.gst_type, p.cgst_rate, p.sgst_rate, p.igst_rate,
+      `SELECT pb.*, p.name AS party_name, p.address AS party_address, p.gst_no AS party_gst, p.gst_type, p.cgst_rate, p.sgst_rate, p.igst_rate,
               f.name AS firm_name, f.address AS firm_address, f.gst_no AS firm_gst
          FROM party_bills pb
          JOIN parties p ON p.id = pb.party_id
@@ -544,7 +545,7 @@ router.post('/:id/mail', async (req, res) => {
         from,
         to,
         firm: { name: bill.firm_name, address: bill.firm_address, gst_no: bill.firm_gst },
-        party: { name: bill.party_name, gst_no: bill.party_gst, gst_type: bill.gst_type, cgst_rate: bill.cgst_rate, sgst_rate: bill.sgst_rate, igst_rate: bill.igst_rate },
+        party: { name: bill.party_name, address: bill.party_address || '', gst_no: bill.party_gst, gst_type: bill.gst_type, cgst_rate: bill.cgst_rate, sgst_rate: bill.sgst_rate, igst_rate: bill.igst_rate },
       },
       items,
       totals: { subtotal, ...taxes, total },

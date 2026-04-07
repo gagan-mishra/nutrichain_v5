@@ -287,61 +287,73 @@ export default function Analytics() {
         <div className="h-4" />
 
         <Card title="Price Intelligence">
-          <div className="mb-3 grid grid-cols-1 md:grid-cols-7 gap-3">
-            <Field label="FY">
-              <select
-                value={fy?.id ? String(fy.id) : ''}
-                onChange={(e) => {
-                  const next = (fys || []).find((x) => String(x.id) === String(e.target.value))
-                  if (next) setFy(next)
-                }}
-                className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}
-              >
-                {fys.map((x) => (
-                  <option key={x.id} value={String(x.id)}>
-                    {x.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <div className="mb-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3">
+            <div className="xl:col-span-2">
+              <Field label="FY">
+                <select
+                  value={fy?.id ? String(fy.id) : ''}
+                  onChange={(e) => {
+                    const next = (fys || []).find((x) => String(x.id) === String(e.target.value))
+                    if (next) setFy(next)
+                  }}
+                  className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}
+                >
+                  {fys.map((x) => (
+                    <option key={x.id} value={String(x.id)}>
+                      {x.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
-            <Field label="Product">
-              <ComboBox value={productId} onChange={setProductId} options={products} placeholder="Select product" />
-            </Field>
+            <div className="xl:col-span-3">
+              <Field label="Product">
+                <ComboBox value={productId} onChange={setProductId} options={products} placeholder="Select product" />
+              </Field>
+            </div>
 
-            <Field label="Party (optional)">
-              <ComboBox value={partyId} onChange={setPartyId} options={parties} placeholder="All parties" />
-            </Field>
+            <div className="xl:col-span-3">
+              <Field label="Party (optional)">
+                <ComboBox value={partyId} onChange={setPartyId} options={parties} placeholder="All parties" />
+              </Field>
+            </div>
 
-            <Field label="Role">
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                disabled={!partyId}
-                className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20 ${!partyId ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <option value="any">Any</option>
-                <option value="seller">Seller</option>
-                <option value="buyer">Buyer</option>
-              </select>
-            </Field>
+            <div className="xl:col-span-1">
+              <Field label="Role">
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  disabled={!partyId}
+                  className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20 ${!partyId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <option value="any">Any</option>
+                  <option value="seller">Seller</option>
+                  <option value="buyer">Buyer</option>
+                </select>
+              </Field>
+            </div>
 
-            <Field label="Group by">
-              <select value={group} onChange={(e) => setGroup(e.target.value)} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}>
-                <option value="day">Day</option>
-                <option value="month">Month</option>
-              </select>
-            </Field>
+            <div className="xl:col-span-1">
+              <Field label="Group by">
+                <select value={group} onChange={(e) => setGroup(e.target.value)} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}>
+                  <option value="day">Day</option>
+                  <option value="month">Month</option>
+                </select>
+              </Field>
+            </div>
 
-            <Field label="Series">
-              <select value={stat} onChange={(e) => setStat(e.target.value)} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}>
-                <option value="last">Close Price</option>
-                <option value="avg">Weighted Avg Price</option>
-                <option value="band">Range + Weighted Avg</option>
-              </select>
-            </Field>
+            <div className="xl:col-span-1">
+              <Field label="Series">
+                <select value={stat} onChange={(e) => setStat(e.target.value)} className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}>
+                  <option value="last">Close Price</option>
+                  <option value="avg">Weighted Avg Price</option>
+                  <option value="band">Range + Weighted Avg</option>
+                </select>
+              </Field>
+            </div>
 
-            <div className="flex items-end">
+            <div className="xl:col-span-1 flex items-end">
               <button
                 onClick={() => {
                   setProductId(null)

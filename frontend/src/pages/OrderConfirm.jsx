@@ -80,6 +80,10 @@ function OrderForm({
     () => (Array.isArray(fieldSuggestions?.payment_criteria) ? fieldSuggestions.payment_criteria.slice(0, SUGGESTION_LIMIT) : []),
     [fieldSuggestions]
   );
+  const statusHistory = useMemo(
+    () => (Array.isArray(fieldSuggestions?.status) ? fieldSuggestions.status.slice(0, SUGGESTION_LIMIT) : []),
+    [fieldSuggestions]
+  );
   const termHistory = useMemo(
     () => (Array.isArray(fieldSuggestions?.terms) ? fieldSuggestions.terms.slice(0, SUGGESTION_LIMIT) : []),
     [fieldSuggestions]
@@ -195,7 +199,13 @@ function OrderForm({
                 placeholder="Open/Confirmed/Pending"
                 name="status"
                 autoComplete="on"
+                list={`${idPrefix}-status-history`}
               />
+              <datalist id={`${idPrefix}-status-history`}>
+                {statusHistory.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Payment Criteria">
               <Input
@@ -361,6 +371,7 @@ export default function OrderConfirm() {
     delivery_station: [],
     delivery_schedule: [],
     payment_criteria: [],
+    status: [],
     terms: [],
   });
 
@@ -372,6 +383,7 @@ export default function OrderConfirm() {
           delivery_station: [],
           delivery_schedule: [],
           payment_criteria: [],
+          status: [],
           terms: [],
         });
         return;
@@ -381,6 +393,7 @@ export default function OrderConfirm() {
         delivery_station: Array.isArray(parsed?.delivery_station) ? parsed.delivery_station : [],
         delivery_schedule: Array.isArray(parsed?.delivery_schedule) ? parsed.delivery_schedule : [],
         payment_criteria: Array.isArray(parsed?.payment_criteria) ? parsed.payment_criteria : [],
+        status: Array.isArray(parsed?.status) ? parsed.status : [],
         terms: Array.isArray(parsed?.terms) ? parsed.terms : [],
       });
     } catch (_) {
@@ -388,17 +401,19 @@ export default function OrderConfirm() {
         delivery_station: [],
         delivery_schedule: [],
         payment_criteria: [],
+        status: [],
         terms: [],
       });
     }
   }, [historyStorageKey]);
 
   const fieldSuggestions = useMemo(() => {
-    const keys = ["delivery_station", "delivery_schedule", "payment_criteria", "terms"];
+    const keys = ["delivery_station", "delivery_schedule", "payment_criteria", "status", "terms"];
     const out = {
       delivery_station: [],
       delivery_schedule: [],
       payment_criteria: [],
+      status: [],
       terms: [],
     };
     for (const key of keys) {
@@ -411,6 +426,11 @@ export default function OrderConfirm() {
         seen.add(nk);
         out[key].push(t);
       };
+      if (key === "status") {
+        push("Open");
+        push("Confirmed");
+        push("Pending");
+      }
       for (const rec of [...rows, ...deleted]) push(rec?.[key]);
       for (const h of localFieldHistory?.[key] || []) push(h);
       out[key] = out[key].slice(0, SUGGESTION_LIMIT);
@@ -573,12 +593,13 @@ export default function OrderConfirm() {
   }
 
   function rememberDraftValues(payload) {
-    const keys = ["delivery_station", "delivery_schedule", "payment_criteria", "terms"];
+    const keys = ["delivery_station", "delivery_schedule", "payment_criteria", "status", "terms"];
     setLocalFieldHistory((prev) => {
       const next = {
         delivery_station: Array.isArray(prev?.delivery_station) ? [...prev.delivery_station] : [],
         delivery_schedule: Array.isArray(prev?.delivery_schedule) ? [...prev.delivery_schedule] : [],
         payment_criteria: Array.isArray(prev?.payment_criteria) ? [...prev.payment_criteria] : [],
+        status: Array.isArray(prev?.status) ? [...prev.status] : [],
         terms: Array.isArray(prev?.terms) ? [...prev.terms] : [],
       };
 

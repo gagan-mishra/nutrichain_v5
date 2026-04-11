@@ -426,13 +426,14 @@ export default function OrderConfirm() {
         seen.add(nk);
         out[key].push(t);
       };
+      for (const rec of [...rows, ...deleted]) push(rec?.[key]);
+      for (const h of localFieldHistory?.[key] || []) push(h);
       if (key === "status") {
+        // Defaults come after history so custom statuses don't get hidden by low limits.
         push("Open");
         push("Confirmed");
         push("Pending");
       }
-      for (const rec of [...rows, ...deleted]) push(rec?.[key]);
-      for (const h of localFieldHistory?.[key] || []) push(h);
       out[key] = out[key].slice(0, SUGGESTION_LIMIT);
     }
     return out;

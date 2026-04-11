@@ -152,6 +152,7 @@ export function AppShell({
           { key: "sales-report",      label: "Sales Report",      path: "/reports/sales",      icon: <FileText size={16} /> },
           { key: "product-report",    label: "Product Report",    path: "/reports/product",    icon: <Package size={16} /> },
           { key: "transaction-report",label: "Transaction Report",path: "/reports/transaction",icon: <ArrowRightLeft size={16} /> },
+          { key: "party-bills-all-firms-report", label: "Party Bills (All Firms)", path: "/reports/party-bills-all-firms", icon: <ReceiptText size={16} /> },
         ],
       },
       {
@@ -413,6 +414,7 @@ function labelFromKey(key) {
     "sales-report": "Sales Report",
     "product-report": "Product Report",
     "transaction-report": "Transaction Report",
+    "party-bills-all-firms-report": "Party Bills (All Firms)",
     "analytics-home": "Analytics",
     "aging": "Aging",
     "payment-behavior": "Payment Behavior",

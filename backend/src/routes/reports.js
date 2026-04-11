@@ -8,6 +8,125 @@ router.use(requireAuth, requireContext);
 
 const DEFAULT_BROKERAGE = Number(process.env.DEFAULT_BROKERAGE_RATE) || 30;
 
+function isMissingUserFirmsTable(err) {
+  return err?.code === 'ER_NO_SUCH_TABLE' && String(err?.message || '').includes('user_firms');
+}
+
+async function listAccessibleFirms(userId) {
+  let useUserFirmScope = false;
+  try {
+    const [[cnt]] = await pool.execute('SELECT COUNT(*) AS c FROM user_firms WHERE user_id = ?', [userId]);
+    useUserFirmScope = (cnt?.c || 0) > 0;
+  } catch (e) {
+    if (!isMissingUserFirmsTable(e)) throw e;
+    console.warn('user_firms table missing; reports fallback to all firms');
+  }
+
+  if (useUserFirmScope) {
+    const [rows] = await pool.execute(
+      `SELECT f.id, f.name
+         FROM firms f
+         JOIN user_firms uf ON uf.firm_id = f.id AND uf.user_id = ?
+        ORDER BY f.name ASC`,
+      [userId]
+    );
+    return rows || [];
+  }
+
+  const [rows] = await pool.execute('SELECT id, name FROM firms ORDER BY name ASC');
+  return rows || [];
+}
+
+// Cross-firm party-bill totals for selected FY
+// GET /reports/party-bills-all-firms?fy_id=optional
+router.get('/party-bills-all-firms', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const fyId = req.query.fy_id ? Number(req.query.fy_id) : (req.ctx.fyId || null);
+    if (!fyId) return res.status(400).json({ error: 'Fiscal year context is required' });
+
+    const firms = await listAccessibleFirms(userId);
+    if (!firms.length) {
+      return res.json({
+        fy_id: fyId,
+        firms: [],
+        rows: [],
+        firm_totals: {},
+        grand_total: 0,
+        bill_count: 0,
+        party_count: 0,
+      });
+    }
+
+    const firmIds = firms.map((f) => Number(f.id)).filter((x) => Number.isFinite(x) && x > 0);
+    const inMarks = firmIds.map(() => '?').join(',');
+    const sql = `
+      SELECT pb.id, pb.firm_id, pb.party_id, p.name AS party_name,
+             pb.from_date, pb.to_date, pb.bill_date, pb.brokerage
+        FROM party_bills pb
+        JOIN parties p ON p.id = pb.party_id
+       WHERE pb.fiscal_year_id = ?
+         AND pb.firm_id IN (${inMarks})
+       ORDER BY pb.id ASC`;
+    const [bills] = await pool.execute(sql, [fyId, ...firmIds]);
+
+    const partyMap = new Map();
+    const firmTotals = new Map(firmIds.map((id) => [id, 0]));
+    let grandTotal = 0;
+
+    for (const bill of bills || []) {
+      const firmId = Number(bill.firm_id);
+      const total = Number(await computeBillTotal(pool, firmId, bill)) || 0;
+
+      grandTotal += total;
+      firmTotals.set(firmId, Number(firmTotals.get(firmId) || 0) + total);
+
+      const partyId = Number(bill.party_id);
+      const cur = partyMap.get(partyId) || {
+        party_id: partyId,
+        party_name: bill.party_name || '',
+        total: 0,
+        firm_totals: {},
+      };
+      cur.total += total;
+      cur.firm_totals[firmId] = Number(cur.firm_totals[firmId] || 0) + total;
+      partyMap.set(partyId, cur);
+    }
+
+    const rows = Array.from(partyMap.values())
+      .map((r) => ({
+        ...r,
+        total: Number((r.total || 0).toFixed(2)),
+      }))
+      .sort((a, b) => (b.total || 0) - (a.total || 0));
+
+    const firmsOut = firms.map((f) => {
+      const id = Number(f.id);
+      return {
+        id,
+        name: f.name,
+        total: Number((firmTotals.get(id) || 0).toFixed(2)),
+      };
+    });
+
+    const firmTotalsObj = {};
+    for (const f of firmsOut) firmTotalsObj[f.id] = f.total;
+
+    res.json({
+      fy_id: fyId,
+      firms: firmsOut,
+      rows,
+      firm_totals: firmTotalsObj,
+      grand_total: Number(grandTotal.toFixed(2)),
+      bill_count: Number((bills || []).length),
+      party_count: Number(rows.length),
+    });
+  } catch (e) {
+    console.error('reports party-bills-all-firms error:', e);
+    res.status(500).json({ error: 'failed to build party bill all-firms report' });
+  }
+});
+
 // Party volume (qty) by role within firm + FY
 // GET /reports/party-volume?fy_id=optional
 router.get('/party-volume', async (req, res) => {

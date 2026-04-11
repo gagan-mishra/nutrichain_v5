@@ -12,6 +12,7 @@ import ReportsParty from "./pages/ReportsParty.jsx";
 import ReportsSales from "./pages/ReportsSales.jsx";
 import ReportsProduct from "./pages/ReportsProduct.jsx";
 import ReportsTransactions from "./pages/ReportsTransactions.jsx";
+import ReportsPartyBillsAllFirms from "./pages/ReportsPartyBillsAllFirms.jsx";
 import Analytics from "./pages/Analytics.jsx";
 import Aging from "./pages/Aging.jsx";
 import PaymentBehavior from "./pages/PaymentBehavior.jsx";
@@ -67,6 +68,10 @@ export default function App() {
       <Route
         path="/reports/transaction"
         element={<Private><ReportsTransactions /></Private>}
+      />
+      <Route
+        path="/reports/party-bills-all-firms"
+        element={<Private><ReportsPartyBillsAllFirms /></Private>}
       />
       <Route path="/analytics" element={<Private><Analytics /></Private>} />
       <Route path="/analytics/aging" element={<Private><Aging /></Private>} />

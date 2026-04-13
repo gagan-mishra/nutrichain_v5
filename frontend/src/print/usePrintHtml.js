@@ -12,6 +12,34 @@ function ensureHtmlDocument(html) {
   return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head><body>${src}</body></html>`;
 }
 
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => (
+    {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    }[c]
+  ));
+}
+
+function withDocumentTitle(htmlDoc, title) {
+  const t = String(title || "").trim();
+  if (!t) return htmlDoc;
+  const safeTitle = escapeHtml(t);
+
+  if (/<title[\s>]/i.test(htmlDoc)) {
+    return htmlDoc.replace(/<title[^>]*>[\s\S]*?<\/title>/i, `<title>${safeTitle}</title>`);
+  }
+
+  if (/<\/head>/i.test(htmlDoc)) {
+    return htmlDoc.replace(/<\/head>/i, `<title>${safeTitle}</title></head>`);
+  }
+
+  return htmlDoc;
+}
+
 function writeHtmlToWindow(w, htmlDoc) {
   try {
     w.document.open();
@@ -31,7 +59,7 @@ function writeHtmlToWindow(w, htmlDoc) {
   }
 }
 
-function printViaIframe(htmlDoc) {
+function printViaIframe(htmlDoc, documentTitle = "") {
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
@@ -47,15 +75,23 @@ function printViaIframe(htmlDoc) {
     throw new Error("Unable to initialize print iframe");
   }
 
+  const originalTitle = document.title;
+  const desiredTitle = String(documentTitle || "").trim();
+  if (desiredTitle) document.title = desiredTitle;
+
   doc.open();
   doc.write(htmlDoc);
   doc.close();
+  if (desiredTitle) {
+    try { doc.title = desiredTitle; } catch (_) {}
+  }
 
   setTimeout(() => {
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
     setTimeout(() => {
       if (document.body.contains(iframe)) document.body.removeChild(iframe);
+      if (desiredTitle) document.title = originalTitle;
     }, 800);
   }, 120);
 }
@@ -100,15 +136,15 @@ export function usePrintHtml() {
   }, []);
 
   const open = useCallback((html, opts = {}) => {
-    const { targetWindow = null } = opts;
-    const htmlDoc = ensureHtmlDocument(html);
+    const { targetWindow = null, documentTitle = "" } = opts;
+    const htmlDoc = withDocumentTitle(ensureHtmlDocument(html), documentTitle);
 
     if (isLikelyMobileBrowser()) {
       printViaNewWindow(htmlDoc, targetWindow || null);
       return;
     }
 
-    printViaIframe(htmlDoc);
+    printViaIframe(htmlDoc, documentTitle);
   }, []);
 
   return { open, prepare };

@@ -12,7 +12,7 @@ import { useToast } from "../components/toast";
 import EditOverlay from "../components/edit-overlay";
 import ConfirmationDialog from "../components/confirm-dialog";
 import { usePrintHtml } from "../print/usePrintHtml";
-import { buildPartyBillHtml, buildPartyBillExcelHtml } from "../print/party-bill-template";
+import { buildPartyBillHtml } from "../print/party-bill-template";
 
 function toYMD(d) {
   if (!d) return "";
@@ -65,6 +65,14 @@ function fileSafe(s = "") {
     .replace(/[\\/:*?"<>|]+/g, "-") // remove illegal filename chars
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function buildBillFileBaseName(row, firmName) {
+  const ini = firmInitials(firmName);
+  const party = fileSafe(row?.partyName || "Party");
+  const yr = fyRangeStr(row?.from, row?.to);
+  const bill = fileSafe(row?.billId || row?.id || "bill");
+  return [bill, ini, party, yr].filter(Boolean).join(". ");
 }
 
 export default function PartyBill() {
@@ -391,16 +399,13 @@ export default function PartyBill() {
                         bill_no: row.billId,
                         brokerage: row.brokerage,
                       }});
-                      const html = buildPartyBillExcelHtml(data);
-                      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                      const { buildPartyBillXlsxBlob } = await import("../print/party-bill-xlsx");
+                      const blob = await buildPartyBillXlsxBlob(data);
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
-                      const ini = firmInitials(firm?.name);
-                      const party = fileSafe(row.partyName || "Party");
-                      const yr = fyRangeStr(row.from, row.to);
-                      const bill = fileSafe(row.billId || row.id || "bill");
-                      a.download = `${bill}. ${ini}. ${party}. ${yr}.xls`;
+                      const baseName = buildBillFileBaseName(row, firm?.name);
+                      a.download = `${baseName}.xlsx`;
                       a.click();
                       URL.revokeObjectURL(url);
                     } catch (e) {
@@ -421,7 +426,8 @@ export default function PartyBill() {
                         brokerage: row.brokerage,
                       }});
                       const html = buildPartyBillHtml(data);
-                      openPrint(html, { targetWindow: printWindow });
+                      const baseName = buildBillFileBaseName(row, firm?.name);
+                      openPrint(html, { targetWindow: printWindow, documentTitle: baseName });
                     } catch (e) {
                       if (printWindow && !printWindow.closed) printWindow.close();
                       console.error(e);

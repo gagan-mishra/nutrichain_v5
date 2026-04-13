@@ -51,6 +51,31 @@ function fmtDMY(input) {
   return `${dd}/${mm}/${yy}`;
 }
 
+function fileSafe(s = "") {
+  return String(s)
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firmInitials(name = "") {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  const letters = words.slice(0, 4).map((w) => w[0]?.toUpperCase() || "");
+  return letters.join("") || "FIRM";
+}
+
+function buildContractPrintBaseName(rec, firmName) {
+  const contractNo = fileSafe(rec?.contract_no || rec?.id || "contract");
+  const seller = fileSafe(rec?.seller_label || rec?.seller_name || "Seller");
+  const buyer = fileSafe(rec?.buyer_label || rec?.buyer_name || "Buyer");
+  const dateStamp = String(rec?.order_date || "").slice(0, 10).replace(/-/g, "");
+  const firmTag = firmInitials(firmName);
+  const partyPair = fileSafe(`${seller}-${buyer}`);
+  const parts = [`Contract-${contractNo}`, firmTag, partyPair];
+  if (dateStamp) parts.push(dateStamp);
+  return parts.filter(Boolean).join(". ");
+}
+
 const SUGGESTION_LIMIT = 2;
 const HISTORY_LIMIT = 80;
 
@@ -737,7 +762,8 @@ export default function OrderConfirm() {
         try {
           const { data } = await api.get(`/contracts/${rec.id}/print`);
           const html = buildContractPrintHtml(data);
-          openPrint(html, { targetWindow: printWindow });
+          const baseName = buildContractPrintBaseName(rec, firm?.name);
+          openPrint(html, { targetWindow: printWindow, documentTitle: baseName });
         } catch (e) {
           if (printWindow && !printWindow.closed) printWindow.close();
           console.error(e);
@@ -792,7 +818,8 @@ export default function OrderConfirm() {
         try {
           const { data } = await api.get(`/contracts/${rec.id}/print`);
           const html = buildContractPrintHtml(data); // <-- now works with raw row
-          openPrint(html, { targetWindow: printWindow });
+          const baseName = buildContractPrintBaseName(rec, firm?.name);
+          openPrint(html, { targetWindow: printWindow, documentTitle: baseName });
         } catch (e) {
           if (printWindow && !printWindow.closed) printWindow.close();
           console.error(e);

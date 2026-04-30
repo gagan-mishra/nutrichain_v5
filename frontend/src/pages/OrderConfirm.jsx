@@ -21,7 +21,6 @@ import {
   List as ListIcon,
   Trash2,
   Save,
-  X,
   Search,
   ArrowUpDown,
 } from "lucide-react";
@@ -74,6 +73,35 @@ function buildContractPrintBaseName(rec, firmName) {
   const parts = [`Contract-${contractNo}`, firmTag, partyPair];
   if (dateStamp) parts.push(dateStamp);
   return parts.filter(Boolean).join(". ");
+}
+
+function normalizePriceInput(value) {
+  const raw = String(value ?? "");
+  const cleaned = raw.replace(/,/g, "").replace(/[^\d.]/g, "");
+  if (!cleaned) return "";
+
+  const dotIdx = cleaned.indexOf(".");
+  if (dotIdx === -1) return cleaned.replace(/^0+(?=\d)/, "");
+
+  const intRaw = cleaned.slice(0, dotIdx).replace(/\./g, "");
+  const decRaw = cleaned.slice(dotIdx + 1).replace(/\./g, "");
+  const intPart = intRaw.replace(/^0+(?=\d)/, "") || "0";
+  return `${intPart}.${decRaw}`;
+}
+
+function formatPriceInput(value) {
+  const raw = String(value ?? "");
+  if (!raw) return "";
+
+  const hasDot = raw.includes(".");
+  const [intPartRaw, decPart = ""] = raw.split(".");
+  const intPart = intPartRaw || "0";
+  const intNum = Number(intPart);
+  const formattedInt = Number.isFinite(intNum)
+    ? intNum.toLocaleString("en-IN", { maximumFractionDigits: 0 })
+    : intPart;
+
+  return hasDot ? `${formattedInt}.${decPart}` : formattedInt;
 }
 
 const SUGGESTION_LIMIT = 2;
@@ -318,12 +346,13 @@ function OrderForm({
             </Field>
             <Field label="Price (per unit)" full>
               <Input
-                type="number"
-                value={draft.price}
-                onChange={(v) => setDraft({ ...draft, price: v })}
+                type="text"
+                value={formatPriceInput(draft.price)}
+                onChange={(v) => setDraft({ ...draft, price: normalizePriceInput(v) })}
                 placeholder="0.00"
                 name="price"
-                autoComplete="on"
+                autoComplete="off"
+                inputMode="decimal"
               />
             </Field>
           </div>
@@ -335,7 +364,7 @@ function OrderForm({
             </span>
             {draft.price ? (
               <span className="ml-3">
-                @ {draft.price} per {draft.unit || "unit"}
+                @ {formatPriceInput(draft.price)} per {draft.unit || "unit"}
               </span>
             ) : null}
           </div>
@@ -895,13 +924,6 @@ export default function OrderConfirm() {
               />
             </form>
             <div className="mt-4 mb-24 flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDraft({})}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5 ${glass}`}
-              >
-                <X size={16} /> Reset
-              </button>
               <button
                 type="button"
                 onClick={() => createOrUpdate(draft)}

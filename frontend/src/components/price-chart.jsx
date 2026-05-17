@@ -110,7 +110,7 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
     return null
   })()
 
-  const hasTrades = chartRows.some((r) => Number(r?.count || 0) > 0)
+  const hasQtyBars = chartRows.some((r) => Number(r?.qty || 0) > 0)
 
   return (
     <div className="rounded-2xl border border-slate-400/20 bg-slate-950/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -151,16 +151,17 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
             tickFormatter={(v) => formatINR(v)}
           />
 
-          {hasTrades && (
+          {hasQtyBars && (
             <YAxis
-              yAxisId="trades"
+              yAxisId="qtyBars"
               orientation="right"
-              allowDecimals={false}
-              width={46}
-              stroke="rgba(148,163,184,0.68)"
+              allowDecimals
+              width={64}
+              stroke="rgba(16,185,129,0.85)"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: 'rgba(148,163,184,0.9)', fontSize: 10 }}
+              tick={{ fill: 'rgba(167,243,208,0.95)', fontSize: 10 }}
+              tickFormatter={(v) => formatQty(v)}
             />
           )}
 
@@ -175,14 +176,14 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
             wrapperStyle={{ color: 'rgba(226,232,240,0.8)', fontSize: 11 }}
           />
 
-          {hasTrades && (
+          {hasQtyBars && (
             <Bar
-              yAxisId="trades"
-              dataKey="count"
-              name="Trades"
+              yAxisId="qtyBars"
+              dataKey="qty"
+              name="Qty"
               barSize={12}
-              fill="rgba(148,163,184,0.22)"
-              stroke="rgba(148,163,184,0.28)"
+              fill="rgba(16,185,129,0.24)"
+              stroke="rgba(16,185,129,0.42)"
               radius={[3, 3, 0, 0]}
             />
           )}

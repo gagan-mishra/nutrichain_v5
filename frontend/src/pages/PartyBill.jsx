@@ -1,5 +1,5 @@
 // src/pages/PartyBill.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -13,6 +13,7 @@ import EditOverlay from "../components/edit-overlay";
 import ConfirmationDialog from "../components/confirm-dialog";
 import { usePrintHtml } from "../print/usePrintHtml";
 import { buildPartyBillHtml } from "../print/party-bill-template";
+import { formatINR } from "../utils/format";
 
 function toYMD(d) {
   if (!d) return "";
@@ -95,6 +96,8 @@ export default function PartyBill() {
 
   // Bills list (persisted via backend)
   const [rows, setRows] = useState([]);
+  const [summaries, setSummaries] = useState({}); // { [billId]: { total, received, outstanding } }
+  const summaryInFlight = useRef(new Map());
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -151,6 +154,8 @@ export default function PartyBill() {
   async function refresh() {
     try {
       const { data } = await api.get('/billing/party-bills');
+      setSummaries({});
+      summaryInFlight.current.clear();
       setRows((data || []).map((r) => ({
         id: r.id,
         partyId: r.party_id,
@@ -170,6 +175,40 @@ export default function PartyBill() {
     }
   }
   useEffect(() => { if (firm?.id) refresh(); }, [firm?.id, fy?.id]);
+
+  function normalizeSummaryPayload(data) {
+    return {
+      total: Number(data?.total || 0),
+      received: Number(data?.received || 0),
+      outstanding: Number(data?.outstanding || 0),
+    };
+  }
+
+  async function fetchAndCacheSummary(billId) {
+    if (!billId) return null;
+    const pending = summaryInFlight.current.get(billId);
+    if (pending) return pending;
+
+    const req = (async () => {
+      const { data } = await api.get(`/billing/party-bills/${billId}/summary`);
+      const next = normalizeSummaryPayload(data);
+      setSummaries((m) => {
+        const prev = m[billId];
+        if (
+          prev
+          && Number(prev.total || 0) === next.total
+          && Number(prev.received || 0) === next.received
+          && Number(prev.outstanding || 0) === next.outstanding
+        ) return m;
+        return { ...m, [billId]: next };
+      });
+      return next;
+    })();
+
+    summaryInFlight.current.set(billId, req);
+    try { return await req; }
+    finally { summaryInFlight.current.delete(billId); }
+  }
 
   // Receive handlers removed from this page
 
@@ -211,6 +250,30 @@ export default function PartyBill() {
     { key: "from", label: "From" },
     { key: "to", label: "To" },
     { key: "billDate", label: "Bill Date" },
+    {
+      key: "amount",
+      label: "Amount",
+      sortValue: (row) => {
+        const s = summaries[row.id];
+        return s ? Number(s.total || 0) : null;
+      },
+      render: (_v, row) => {
+        const s = summaries[row.id];
+        return s ? formatINR(s.total || 0) : "...";
+      },
+    },
+    {
+      key: "received",
+      label: "Received",
+      sortValue: (row) => {
+        const s = summaries[row.id];
+        return s ? Number(s.received || 0) : null;
+      },
+      render: (_v, row) => {
+        const s = summaries[row.id];
+        return s ? formatINR(s.received || 0) : "...";
+      },
+    },
     { key: "brokerage", label: "Brokerage" },
     { key: "mailedAt", label: "Mail", render: (v) => (
       v
@@ -247,7 +310,27 @@ export default function PartyBill() {
   useEffect(() => { setPage(1); }, [q, pageSize]);
   useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
 
-  // Summaries are not shown on this page
+  // Preload summaries in small batches for current filtered list.
+  useEffect(() => {
+    let cancelled = false;
+    if (tab !== "list") return () => { cancelled = true; };
+
+    (async () => {
+      const missingIds = sorted
+        .map((r) => r.id)
+        .filter((id) => !summaries[id] && !summaryInFlight.current.has(id));
+
+      const batch = missingIds.slice(0, 15);
+      for (const id of batch) {
+        if (cancelled) break;
+        try {
+          await fetchAndCacheSummary(id);
+        } catch (_) {}
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [tab, sorted, summaries]);
 
   return (
     <AppShell

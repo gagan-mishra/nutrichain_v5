@@ -7,10 +7,20 @@ import DataTable from "../components/table";
 import Pagination from "../components/pagination";
 import { glass, Card } from "../components/primitives";
 import { Search } from "lucide-react";
+import EditOverlay from "../components/edit-overlay";
 
 function fmtQty(n) {
   const v = Number(n || 0);
   return v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+function fmtDate(v) {
+  const s = String(v || "");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  return s;
 }
 
 export default function ReportsParty() {
@@ -21,6 +31,11 @@ export default function ReportsParty() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewParty, setViewParty] = useState(null);
+  const [viewRows, setViewRows] = useState([]);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [viewError, setViewError] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -48,6 +63,30 @@ export default function ReportsParty() {
     { key: 'seller_qty', label: 'Seller Qty', render: (v) => fmtQty(v) },
     { key: 'buyer_qty', label: 'Buyer Qty', render: (v) => fmtQty(v) },
     { key: 'total_qty', label: 'Total Qty', render: (v) => fmtQty(v) },
+    {
+      key: 'view',
+      label: 'View',
+      sortable: false,
+      render: (_v, row) => (
+        <button
+          type="button"
+          onClick={() => openPartyView(row)}
+          className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-medium text-white hover:bg-white/20"
+        >
+          View
+        </button>
+      ),
+    },
+  ];
+
+  const viewColumns = [
+    { key: "contract_no", label: "Contract No" },
+    { key: "order_date", label: "Date", render: (v) => fmtDate(v) },
+    { key: "seller_name", label: "Seller", wrap: true },
+    { key: "buyer_name", label: "Buyer", wrap: true },
+    { key: "product_name", label: "Product", wrap: true },
+    { key: "qty", label: "Qty", render: (v) => fmtQty(v) },
+    { key: "unit", label: "Unit" },
   ];
 
   const filtered = useMemo(() => {
@@ -69,6 +108,27 @@ export default function ReportsParty() {
     for (const r of filtered) { s += r.seller_qty || 0; b += r.buyer_qty || 0; t += r.total_qty || 0; }
     return { s, b, t };
   }, [filtered]);
+
+  const viewTotalQty = useMemo(
+    () => viewRows.reduce((sum, r) => sum + Number(r?.qty || 0), 0),
+    [viewRows]
+  );
+
+  async function openPartyView(row) {
+    setViewParty(row);
+    setViewRows([]);
+    setViewError("");
+    setViewOpen(true);
+    setViewLoading(true);
+    try {
+      const { data } = await api.get("/reports/transactions", { params: { party_id: row.party_id } });
+      setViewRows(data || []);
+    } catch (e) {
+      setViewError(e?.response?.data?.error || "Failed to load party contracts");
+    } finally {
+      setViewLoading(false);
+    }
+  }
 
   return (
     <AppShell
@@ -113,6 +173,48 @@ export default function ReportsParty() {
             </div>
           </div>
         </Card>
+
+        <EditOverlay
+          open={viewOpen}
+          title={`Party Contracts • ${viewParty?.party_name || ""}`}
+          onClose={() => {
+            setViewOpen(false);
+            setViewParty(null);
+            setViewRows([]);
+            setViewError("");
+          }}
+          footer={
+            <button
+              type="button"
+              onClick={() => setViewOpen(false)}
+              className="rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10 border border-white/10"
+            >
+              Close
+            </button>
+          }
+        >
+          {viewLoading ? (
+            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/70">
+              Loading contracts...
+            </div>
+          ) : viewError ? (
+            <div className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+              {viewError}
+            </div>
+          ) : (
+            <>
+              <DataTable columns={viewColumns} rows={viewRows} allowedActions={[]} indexColumn indexStart={1} />
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm">
+                <div className="text-white/70">
+                  Contracts: <strong className="text-white">{viewRows.length}</strong>
+                </div>
+                <div className="text-white/70">
+                  Total Qty: <strong className="text-white">{fmtQty(viewTotalQty)}</strong>
+                </div>
+              </div>
+            </>
+          )}
+        </EditOverlay>
 
       </div>
     </AppShell>

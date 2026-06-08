@@ -15,6 +15,11 @@ import {
 import { formatINR } from '../utils/format'
 
 const qtyFmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 })
+const CHART_ANIMATION = {
+  isAnimationActive: true,
+  animationDuration: 260,
+  animationEasing: 'ease-out',
+}
 
 function toNum(v) {
   const n = Number(v)
@@ -185,6 +190,7 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
               fill="rgba(16,185,129,0.24)"
               stroke="rgba(16,185,129,0.42)"
               radius={[3, 3, 0, 0]}
+              {...CHART_ANIMATION}
             />
           )}
 
@@ -199,6 +205,7 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
                 strokeWidth={1.8}
                 fill="url(#priceLineFill)"
                 connectNulls
+                {...CHART_ANIMATION}
               />
               <Line
                 yAxisId="price"
@@ -210,15 +217,16 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
                 activeDot={{ r: 4, fill: '#e0f2fe', stroke: '#0c4a6e', strokeWidth: 1 }}
                 connectNulls
                 legendType="none"
+                {...CHART_ANIMATION}
               />
             </>
           ) : (
             <>
-              <Area yAxisId="price" type="monotone" dataKey="min" stackId="band" stroke="transparent" fill="transparent" legendType="none" connectNulls />
-              <Area yAxisId="price" type="monotone" dataKey="gap" stackId="band" name="Range" stroke="none" fill="url(#bandRangeFill)" connectNulls />
-              <Line yAxisId="price" type="monotone" dataKey="min" name="Low" stroke="#86efac" strokeWidth={1.6} dot={false} connectNulls />
-              <Line yAxisId="price" type="monotone" dataKey="max" name="High" stroke="#22d3ee" strokeWidth={1.6} dot={false} connectNulls />
-              <Line yAxisId="price" type="monotone" dataKey="avg" name="Weighted Avg" stroke="#facc15" strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} connectNulls />
+              <Area yAxisId="price" type="monotone" dataKey="min" stackId="band" stroke="transparent" fill="transparent" legendType="none" connectNulls isAnimationActive={false} />
+              <Area yAxisId="price" type="monotone" dataKey="gap" stackId="band" name="Range" stroke="none" fill="url(#bandRangeFill)" connectNulls {...CHART_ANIMATION} />
+              <Line yAxisId="price" type="monotone" dataKey="min" name="Low" stroke="#86efac" strokeWidth={1.6} dot={false} connectNulls {...CHART_ANIMATION} />
+              <Line yAxisId="price" type="monotone" dataKey="max" name="High" stroke="#22d3ee" strokeWidth={1.6} dot={false} connectNulls {...CHART_ANIMATION} />
+              <Line yAxisId="price" type="monotone" dataKey="avg" name="Weighted Avg" stroke="#facc15" strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} connectNulls {...CHART_ANIMATION} />
             </>
           )}
 

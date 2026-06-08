@@ -286,10 +286,23 @@ router.get('/price-series', async (req, res) => {
     const fmt = group === 'month' ? '%Y-%m' : '%Y-%m-%d';
     const partyId = req.query.party_id ? Number(req.query.party_id) : null;
     const role = (req.query.role || 'any').toLowerCase(); // any|seller|buyer
+    const scope = (req.query.scope || 'current_firm').toLowerCase(); // current_firm|all_firms
 
-    const params = [firmId, productId];
+    const params = [];
     const qtyExpr = 'COALESCE(NULLIF(c.max_qty, 0), NULLIF(c.min_qty, 0), 0)';
-    let where = 'c.firm_id = ? AND c.product_id = ? AND c.deleted_at IS NULL AND c.price IS NOT NULL AND c.price > 0';
+    let firmWhere = 'c.firm_id = ?';
+    if (scope === 'all_firms') {
+      const firms = await listAccessibleFirms(req.user?.id);
+      const firmIds = firms.map((f) => Number(f.id)).filter((id) => Number.isFinite(id) && id > 0);
+      if (!firmIds.length) return res.json([]);
+      firmWhere = `c.firm_id IN (${firmIds.map(() => '?').join(',')})`;
+      params.push(...firmIds);
+    } else {
+      params.push(firmId);
+    }
+    params.push(productId);
+
+    let where = `${firmWhere} AND c.product_id = ? AND c.deleted_at IS NULL AND c.price IS NOT NULL AND c.price > 0`;
     if (fyId) { where += ' AND c.fiscal_year_id = ?'; params.push(fyId); }
     if (partyId) {
       if (role === 'seller') { where += ' AND c.seller_id = ?'; params.push(partyId); }

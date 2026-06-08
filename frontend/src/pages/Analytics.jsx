@@ -171,6 +171,7 @@ export default function Analytics() {
   const [role, setRole] = useState('any')
   const [group, setGroup] = useState('day')
   const [stat, setStat] = useState('last')
+  const [firmScope, setFirmScope] = useState('current_firm')
 
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(false)
@@ -214,7 +215,7 @@ export default function Analytics() {
       setError('')
 
       try {
-        const params = { product_id: productId, group, stat }
+        const params = { product_id: productId, group, stat, scope: firmScope }
         if (fy?.id) params.fy_id = fy.id
         if (partyId) {
           params.party_id = partyId
@@ -255,7 +256,7 @@ export default function Analytics() {
     return () => {
       active = false
     }
-  }, [firm?.id, fy?.id, productId, partyId, role, group, stat])
+  }, [firm?.id, fy?.id, productId, partyId, role, group, stat, firmScope])
 
   const insights = useMemo(() => buildInsights(chartData, stat), [chartData, stat])
   const hasPlottedPoints = useMemo(
@@ -307,13 +308,26 @@ export default function Analytics() {
               </Field>
             </div>
 
-            <div className="xl:col-span-3">
+            <div className="xl:col-span-2">
+              <Field label="Firm Scope">
+                <select
+                  value={firmScope}
+                  onChange={(e) => setFirmScope(e.target.value)}
+                  className={`w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/20 ${glass} bg-black/20`}
+                >
+                  <option value="current_firm">Current Firm</option>
+                  <option value="all_firms">All Firms</option>
+                </select>
+              </Field>
+            </div>
+
+            <div className="xl:col-span-2">
               <Field label="Product">
                 <ComboBox value={productId} onChange={setProductId} options={products} placeholder="Select product" />
               </Field>
             </div>
 
-            <div className="xl:col-span-3">
+            <div className="xl:col-span-2">
               <Field label="Party (optional)">
                 <ComboBox value={partyId} onChange={setPartyId} options={parties} placeholder="All parties" />
               </Field>
@@ -361,6 +375,7 @@ export default function Analytics() {
                   setRole('any')
                   setGroup('day')
                   setStat('last')
+                  setFirmScope('current_firm')
                   setError('')
                 }}
                 className={`rounded-lg px-3 py-2 text-sm ${glass} bg-white/10 hover:bg-white/20 border border-white/10`}

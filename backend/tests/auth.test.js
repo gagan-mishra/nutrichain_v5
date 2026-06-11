@@ -187,9 +187,9 @@ describe('Auth routes', () => {
     });
 
     test('returns 403 if user not allowed for firm', async () => {
-      pool.execute
-        .mockResolvedValueOnce([[{ c: 1 }]])   // user has user_firms entries
-        .mockResolvedValueOnce([[]]);           // but not for target firm
+      pool.execute.mockResolvedValueOnce([[
+        { id: 99, has_user_firm_scope: 1, can_access: 0 },
+      ]]);
 
       const token = jwt.sign({ id: 1, username: 'admin', firmId: 1, jti: 'jti-sf2' }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
@@ -202,9 +202,9 @@ describe('Auth routes', () => {
     });
 
     test('switches firm and sets new cookie', async () => {
-      pool.execute
-        .mockResolvedValueOnce([[{ c: 0 }]])       // no user_firms = allow all
-        .mockResolvedValueOnce([[{ id: 2 }]]);      // firm exists
+      pool.execute.mockResolvedValueOnce([[
+        { id: 2, has_user_firm_scope: 0, can_access: 0 },
+      ]]);
 
       const token = jwt.sign({ id: 1, username: 'admin', firmId: 1, jti: 'jti-sf3' }, process.env.JWT_SECRET, { expiresIn: '1h' });
 

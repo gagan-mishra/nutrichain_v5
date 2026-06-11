@@ -34,10 +34,37 @@ function prioritizeCurrentFyRows(rows) {
 
 export const api = axios.create({ baseURL, withCredentials: true })
 
+let pendingRequestCount = 0
+const activityListeners = new Set()
+
+function publishApiActivity() {
+  activityListeners.forEach((listener) => listener(pendingRequestCount))
+}
+
+function startTracking(config) {
+  config.__tracksApiActivity = true
+  pendingRequestCount += 1
+  publishApiActivity()
+}
+
+function stopTracking(config) {
+  if (!config?.__tracksApiActivity) return
+  config.__tracksApiActivity = false
+  pendingRequestCount = Math.max(0, pendingRequestCount - 1)
+  publishApiActivity()
+}
+
+export function subscribeApiActivity(listener) {
+  activityListeners.add(listener)
+  listener(pendingRequestCount)
+  return () => activityListeners.delete(listener)
+}
+
 // One-time cleanup of legacy token storage (cookie auth is now used).
 try { localStorage.removeItem('token') } catch {}
 
 api.interceptors.request.use((cfg) => {
+  startTracking(cfg)
   const fyId = localStorage.getItem('fyId')
   if (fyId) cfg.headers['X-Fy-Id'] = fyId
   return cfg
@@ -47,6 +74,7 @@ api.interceptors.request.use((cfg) => {
 let isLoggingOut = false
 api.interceptors.response.use(
   (res) => {
+    stopTracking(res.config)
     const url = String(res?.config?.url || '')
     if (url.includes('/firms/fiscal-years') && Array.isArray(res.data)) {
       res.data = prioritizeCurrentFyRows(res.data)
@@ -54,6 +82,7 @@ api.interceptors.response.use(
     return res
   },
   (error) => {
+    stopTracking(error?.config)
     const status = error?.response?.status
     if (!isLoggingOut && (status === 401 || status === 440)) {
       try {

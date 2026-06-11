@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Building2, ChevronDown, Check } from "lucide-react";
 import { Popover } from "./popover";
 
-export function FirmPill({ firm, firms, onPick }) {
+export function FirmPill({ firm, firms, onPick, disabled = false }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const btnRef = useRef(null);
@@ -14,9 +14,11 @@ export function FirmPill({ firm, firms, onPick }) {
     <div className="relative">
       <button
         ref={btnRef}
+        disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm
-                   bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10"
+                   bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10
+                   disabled:cursor-wait disabled:opacity-60 disabled:hover:bg-white/5"
       >
         <Building2 size={16} />
         <span className="font-medium truncate max-w-[180px]">
@@ -59,16 +61,18 @@ export function FirmPill({ firm, firms, onPick }) {
   );
 }
 
-export function FyPill({ fy, fys, onPick }) {
+export function FyPill({ fy, fys, onPick, disabled = false }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef(null);
   return (
     <div className="relative">
       <button
         ref={btnRef}
+        disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm
-                   bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10"
+                   bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10
+                   disabled:cursor-wait disabled:opacity-60 disabled:hover:bg-white/5"
       >
         <CalendarBadge fy={fy} />
         <ChevronDown size={14} className="opacity-70" />

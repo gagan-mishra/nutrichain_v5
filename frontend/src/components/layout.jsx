@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -16,11 +16,14 @@ import {
   ChevronDown,
   ChevronRight,
   TrendingUp,
+  CheckCircle2,
+  CircleAlert,
+  LoaderCircle,
 } from "lucide-react";
 import { glass } from "./primitives";
 import ChangePasswordDialog from "./change-password-dialog";
 import { FirmPill, FyPill, CalendarBadge } from "./pickers";
-import { switchFirm, logout } from "../api";
+import { logout, subscribeApiActivity, switchFirm } from "../api";
 
 /* ------------ Collapsible section in the sidebar ------------ */
 const Section = ({ label, icon: Icon, items, isOpen, onToggle, activeKey, onSelect }) => (
@@ -89,6 +92,11 @@ export function AppShell({
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [contextNotice, setContextNotice] = useState(null);
+  const contextRefreshRef = useRef({ active: false, sawRequest: false });
+  const noticeTimerRef = useRef(null);
+  const noRequestTimerRef = useRef(null);
+  const settleTimerRef = useRef(null);
 
   // Derive display firm from stored firmId to avoid accidental UI switch to first firm
   const displayFirm = useMemo(() => {
@@ -107,17 +115,93 @@ export function AppShell({
     } catch { return fy; }
   }, [fys, fy]);
 
+  const clearNoticeTimers = useCallback(() => {
+    window.clearTimeout(noticeTimerRef.current);
+    window.clearTimeout(noRequestTimerRef.current);
+    window.clearTimeout(settleTimerRef.current);
+  }, []);
+
+  const finishContextRefresh = useCallback(() => {
+    if (!contextRefreshRef.current.active) return;
+    contextRefreshRef.current.active = false;
+    window.clearTimeout(noRequestTimerRef.current);
+    window.clearTimeout(settleTimerRef.current);
+    setContextNotice((current) => current
+      ? { ...current, phase: "done", message: `${current.kind} changed to ${current.label}` }
+      : current
+    );
+    window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setContextNotice(null), 1800);
+  }, []);
+
+  const beginContextRefresh = useCallback((kind, label) => {
+    clearNoticeTimers();
+    contextRefreshRef.current = { active: true, sawRequest: false };
+    setContextNotice({
+      phase: "refreshing",
+      kind,
+      label,
+      message: `Refreshing data for ${kind.toLowerCase()} ${label}...`,
+    });
+
+    // Context-scoped page requests normally start in the next React effect.
+    noRequestTimerRef.current = window.setTimeout(() => {
+      if (!contextRefreshRef.current.sawRequest) finishContextRefresh();
+    }, 350);
+  }, [clearNoticeTimers, finishContextRefresh]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeApiActivity((pendingCount) => {
+      if (!contextRefreshRef.current.active) return;
+      if (pendingCount > 0) {
+        contextRefreshRef.current.sawRequest = true;
+        window.clearTimeout(settleTimerRef.current);
+      } else if (contextRefreshRef.current.sawRequest) {
+        settleTimerRef.current = window.setTimeout(finishContextRefresh, 180);
+      }
+    });
+    return unsubscribe;
+  }, [finishContextRefresh]);
+
+  useEffect(() => () => clearNoticeTimers(), [clearNoticeTimers]);
+
   async function onPickFirm(f) {
+    if (!f || String(f.id) === String(displayFirm?.id)) return;
+    clearNoticeTimers();
+    contextRefreshRef.current = { active: false, sawRequest: false };
+    setContextNotice({
+      phase: "switching",
+      kind: "Firm",
+      label: f.name,
+      message: `Switching to ${f.name}...`,
+    });
+
     try {
       const { data } = await switchFirm(f.id);
       if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('firmId', String(f.id));
       setFirm(f);
+      beginContextRefresh("Firm", f.name);
     } catch (e) {
       console.error(e);
-      alert('Not allowed to switch to this firm');
+      setContextNotice({
+        phase: "error",
+        kind: "Firm",
+        label: f.name,
+        message: "Could not switch firm. Please try again.",
+      });
+      noticeTimerRef.current = window.setTimeout(() => setContextNotice(null), 3000);
     }
   }
+
+  function onPickFy(nextFy) {
+    if (!nextFy || String(nextFy.id) === String(displayFy?.id)) return;
+    setFy(nextFy);
+    beginContextRefresh("FY", nextFy.label);
+  }
+
+  const isChangingContext =
+    contextNotice?.phase === "switching" || contextNotice?.phase === "refreshing";
 
   // Define sections with paths for navigation
   const sections = useMemo(
@@ -210,7 +294,7 @@ export function AppShell({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Layers size={16} className="opacity-80" />
-              <span className="text-sm font-medium truncate">{firm?.name || "Select Firm"}</span>
+              <span className="text-sm font-medium truncate">{displayFirm?.name || "Select Firm"}</span>
             </div>
           </div>
           <div className="mt-3 flex items-center gap-3 text-white/80">
@@ -267,8 +351,8 @@ export function AppShell({
           <div className="flex items-center gap-3 text-white">
             {/* Hide pickers on mobile to reduce congestion; available in drawer */}
             <div className="hidden md:flex items-center gap-3">
-              <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} />
-              <FyPill fy={displayFy} fys={fys} onPick={setFy} />
+              <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} disabled={isChangingContext} />
+              <FyPill fy={displayFy} fys={fys} onPick={onPickFy} disabled={isChangingContext} />
             </div>
 
             <div className="hidden md:flex items-center gap-3">
@@ -298,7 +382,35 @@ export function AppShell({
             </div>
           </div>
         </div>
-
+        <AnimatePresence>
+          {contextNotice && (
+            <motion.div
+              key={`${contextNotice.kind}-${contextNotice.label}-${contextNotice.phase}`}
+              role="status"
+              aria-live="polite"
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className={`fixed right-4 top-20 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border px-3 py-2 text-sm shadow-2xl backdrop-blur-xl ${
+                contextNotice.phase === "error"
+                  ? "border-red-400/30 bg-red-950/90 text-red-100"
+                  : contextNotice.phase === "done"
+                    ? "border-emerald-400/30 bg-emerald-950/90 text-emerald-100"
+                    : "border-cyan-400/25 bg-slate-950/90 text-white"
+              }`}
+            >
+              {contextNotice.phase === "error" ? (
+                <CircleAlert size={17} />
+              ) : contextNotice.phase === "done" ? (
+                <CheckCircle2 size={17} />
+              ) : (
+                <LoaderCircle size={17} className="animate-spin text-cyan-300" />
+              )}
+              <span>{contextNotice.message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Page header */}
         <div className={`flex items-center justify-between gap-3 px-5 py-4 text-white ${glass}`}>
           <div>
@@ -307,7 +419,7 @@ export function AppShell({
           </div>
           <div className="hidden md:flex items-center gap-2">
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
-              Firm: <strong className="ml-1 text-white">{firm?.name || "—"}</strong>
+              Firm: <strong className="ml-1 text-white">{displayFirm?.name || "—"}</strong>
             </span>
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
               FY: <strong className="ml-1 text-white">{displayFy?.label || "—"}</strong>
@@ -337,7 +449,7 @@ export function AppShell({
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Layers size={16} className="opacity-80" />
-                <span className="text-sm font-medium">{firm?.name || "Select Firm"}</span>
+                <span className="text-sm font-medium">{displayFirm?.name || "Select Firm"}</span>
               </div>
               <button
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 border border-white/10"
@@ -351,8 +463,8 @@ export function AppShell({
             <div className={`mb-3 rounded-2xl p-4 ${glass}`}>
               <div className="mb-2 text-xs uppercase tracking-wider text-white/50">Context</div>
               <div className="flex flex-col gap-2">
-                <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} />
-                <FyPill fy={displayFy} fys={fys || []} onPick={setFy} />
+                <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} disabled={isChangingContext} />
+                <FyPill fy={displayFy} fys={fys || []} onPick={onPickFy} disabled={isChangingContext} />
               </div>
             </div>
 

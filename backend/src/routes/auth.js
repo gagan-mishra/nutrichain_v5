@@ -138,26 +138,29 @@ router.post('/switch-firm', requireAuth, async (req, res) => {
     const targetFirmId = Number(req.body?.firmId);
     if (!targetFirmId) return res.status(400).json({ error: 'firmId required' });
 
-    // If user_firms table has rows for this user, enforce membership. If none, allow all (single-user-on-all-firms case).
-    let useUserFirmScope = false;
+    // Check firm existence and access in one database round trip. Users without
+    // user_firms rows retain access to every firm (the single-user setup).
     try {
-      const [[cntAll]] = await pool.execute('SELECT COUNT(*) AS c FROM user_firms WHERE user_id = ?', [userId]);
-      useUserFirmScope = (cntAll?.c || 0) > 0;
+      const [[firmAccess]] = await pool.execute(
+        `SELECT f.id,
+                EXISTS(SELECT 1 FROM user_firms uf WHERE uf.user_id = ?) AS has_user_firm_scope,
+                EXISTS(SELECT 1 FROM user_firms uf WHERE uf.user_id = ? AND uf.firm_id = ?) AS can_access
+           FROM firms f
+          WHERE f.id = ?
+          LIMIT 1`,
+        [userId, userId, targetFirmId, targetFirmId]
+      );
+
+      if (!firmAccess) return res.status(404).json({ error: 'Firm not found' });
+      if (Number(firmAccess.has_user_firm_scope) > 0 && Number(firmAccess.can_access) === 0) {
+        return res.status(403).json({ error: 'Not allowed for this firm' });
+      }
     } catch (e) {
       if (!isMissingUserFirmsTable(e)) throw e;
       console.warn('user_firms table missing; switch-firm allows all existing firms');
+      const [[firm]] = await pool.execute('SELECT id FROM firms WHERE id = ? LIMIT 1', [targetFirmId]);
+      if (!firm) return res.status(404).json({ error: 'Firm not found' });
     }
-    if (useUserFirmScope) {
-      const [[row]] = await pool.execute(
-        'SELECT 1 FROM user_firms WHERE user_id = ? AND firm_id = ? LIMIT 1',
-        [userId, targetFirmId]
-      );
-      if (!row) return res.status(403).json({ error: 'Not allowed for this firm' });
-    }
-
-    // Confirm firm exists
-    const [[firm]] = await pool.execute('SELECT id FROM firms WHERE id = ? LIMIT 1', [targetFirmId]);
-    if (!firm) return res.status(404).json({ error: 'Firm not found' });
 
     const token = signToken({ id: req.user.id, username: req.user.username, firmId: targetFirmId });
     setTokenCookie(res, token);

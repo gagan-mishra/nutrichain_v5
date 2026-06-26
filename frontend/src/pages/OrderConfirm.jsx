@@ -121,6 +121,16 @@ function OrderForm({
 }) {
   const wrap = isEditing ? "ring-1 ring-yellow-400/40 rounded-2xl" : "";
   const idPrefix = isEditing ? "edit" : "add";
+  const qtyPriceRef = useRef(null);
+  const scrollQtyPriceIntoView = () => {
+    window.requestAnimationFrame(() => {
+      qtyPriceRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    });
+  };
   const stationHistory = useMemo(
     () => (Array.isArray(fieldSuggestions?.delivery_station) ? fieldSuggestions.delivery_station.slice(0, SUGGESTION_LIMIT) : []),
     [fieldSuggestions]
@@ -299,12 +309,13 @@ function OrderForm({
       </div>
 
       {/* ===== Quantity & Price (Product first) ===== */}
-      <div className={`${wrap} relative z-0`}>
+      <div ref={qtyPriceRef} className={`${wrap} relative z-0`}>
         <Card title="Quantity & Price">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Field label="Product">
               <ComboBox
                 value={draft.product}
+                onFocus={scrollQtyPriceIntoView}
                 onChange={(v) => {
                   const picked = productOptions.find((o) => o.value === v);
                   setDraft({
@@ -322,6 +333,7 @@ function OrderForm({
                 type="number"
                 value={draft.min_qty}
                 onChange={(v) => setDraft({ ...draft, min_qty: v })}
+                onFocus={scrollQtyPriceIntoView}
                 name="min_qty"
                 autoComplete="on"
               />
@@ -331,6 +343,7 @@ function OrderForm({
                 type="number"
                 value={draft.max_qty}
                 onChange={(v) => setDraft({ ...draft, max_qty: v })}
+                onFocus={scrollQtyPriceIntoView}
                 name="max_qty"
                 autoComplete="on"
               />
@@ -339,6 +352,7 @@ function OrderForm({
               <Input
                 value={draft.unit}
                 onChange={(v) => setDraft({ ...draft, unit: v })}
+                onFocus={scrollQtyPriceIntoView}
                 placeholder="kg/mt/pcs"
                 name="unit"
                 autoComplete="on"
@@ -349,6 +363,7 @@ function OrderForm({
                 type="text"
                 value={formatPriceInput(draft.price)}
                 onChange={(v) => setDraft({ ...draft, price: normalizePriceInput(v) })}
+                onFocus={scrollQtyPriceIntoView}
                 placeholder="0.00"
                 name="price"
                 autoComplete="off"

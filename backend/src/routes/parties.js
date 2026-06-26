@@ -5,6 +5,8 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth);
 
+const MAX_PARTY_EMAILS = 10;
+
 /**
  * Existing lightweight list for dropdowns:
  * GET /parties?for=seller|buyer
@@ -28,7 +30,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * Create party (with up to 6 emails)
+ * Create party (with up to 10 emails)
  * POST /parties
  */
 // POST /parties
@@ -55,7 +57,7 @@ router.post('/', async (req, res) => {
     const [r] = await pool.execute(sql, params);
 
     // emails
-    const emails = Array.isArray(p.emails) ? p.emails.filter(Boolean).slice(0, 6) : [];
+    const emails = Array.isArray(p.emails) ? p.emails.filter(Boolean).slice(0, MAX_PARTY_EMAILS) : [];
     if (emails.length) {
       const values = emails.map(() => '(?, ?)').join(', ');
       const flat = emails.flatMap((e) => [r.insertId, e]);
@@ -118,7 +120,7 @@ router.put('/:id', async (req, res) => {
 
     // replace emails
     await pool.execute(`DELETE FROM party_emails WHERE party_id = ?`, [id]);
-    const emails = Array.isArray(p.emails) ? p.emails.filter(Boolean).slice(0, 6) : [];
+    const emails = Array.isArray(p.emails) ? p.emails.filter(Boolean).slice(0, MAX_PARTY_EMAILS) : [];
     if (emails.length) {
       const values = emails.map(() => '(?, ?)').join(', ');
       const flat = emails.flatMap((e) => [id, e]);

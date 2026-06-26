@@ -49,6 +49,7 @@ export default function ComboBox({
   options,
   placeholder = "Select…",
   emptyText = "No matches",
+  onFocus,
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -99,6 +100,7 @@ export default function ComboBox({
       <button
         type="button"
         ref={btnRef}
+        onFocus={onFocus}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
           // typing should open and feed search

@@ -18,7 +18,7 @@
 // import { useToast } from "../components/toast";
 // import ConfirmationDialog from "../components/confirm-dialog";
 
-// const MAX_EMAILS = 6;
+// const MAX_EMAILS = 10;
 
 // const EMPTY = {
 //   name: "",
@@ -107,7 +107,7 @@
 
 //       {/* Emails */}
 //       <div className={ringWrap}>
-//         <Card title="Emails (up to 6)">
+//         <Card title="Emails (up to 10)">
 //           <div className="space-y-2">
 //             {Array.from({
 //               length: Math.min(draft.emails?.length || 1, MAX_EMAILS),
@@ -537,7 +537,7 @@ import { Plus, List as ListIcon, Save, X } from "lucide-react";
 import Pagination from "../components/pagination";
 import { useToast } from "../components/toast";
 
-const MAX_EMAILS = 6;
+const MAX_EMAILS = 10;
 
 const EMPTY = {
   name: "",
@@ -627,7 +627,7 @@ function PartyForm({ draft, setDraft, isEditing }) {
 
       {/* Emails */}
       <div className={ringWrap}>
-        <Card title="Emails (up to 6)">
+        <Card title="Emails (up to 10)">
           <div className="space-y-2">
             {Array.from({ length: Math.min(draft.emails?.length || 1, MAX_EMAILS) }).map((_, i) => (
               <div key={i} className="flex items-center gap-2">

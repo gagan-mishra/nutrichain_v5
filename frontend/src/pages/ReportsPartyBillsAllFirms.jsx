@@ -23,8 +23,12 @@ export default function ReportsPartyBillsAllFirms() {
   const [reportRows, setReportRows] = useState([]);
   const [reportFirms, setReportFirms] = useState([]);
   const [grandTotal, setGrandTotal] = useState(0);
+  const [grandReceived, setGrandReceived] = useState(0);
+  const [grandOutstanding, setGrandOutstanding] = useState(0);
   const [billCount, setBillCount] = useState(0);
+  const [receiptCount, setReceiptCount] = useState(0);
   const [partyCount, setPartyCount] = useState(0);
+  const [metric, setMetric] = useState("billed");
 
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -58,14 +62,20 @@ export default function ReportsPartyBillsAllFirms() {
         setReportRows(rows);
         setReportFirms(data?.firms || []);
         setGrandTotal(Number(data?.grand_total || 0));
+        setGrandReceived(Number(data?.grand_received || 0));
+        setGrandOutstanding(Number(data?.grand_outstanding || 0));
         setBillCount(Number(data?.bill_count || 0));
+        setReceiptCount(Number(data?.receipt_count || 0));
         setPartyCount(Number(data?.party_count || 0));
       } catch (e) {
         setError(e?.response?.data?.error || "Failed to load all-firms party bills report");
         setReportRows([]);
         setReportFirms([]);
         setGrandTotal(0);
+        setGrandReceived(0);
+        setGrandOutstanding(0);
         setBillCount(0);
+        setReceiptCount(0);
         setPartyCount(0);
       } finally {
         setLoading(false);
@@ -74,22 +84,31 @@ export default function ReportsPartyBillsAllFirms() {
   }, [firm?.id, fy?.id]);
 
   const columns = useMemo(
-    () => [
-      { key: "party_name", label: "Party", wrap: true },
-      ...reportFirms.map((f) => ({
-        key: `firm_${f.id}`,
-        label: f.name,
-        render: (_v, row) => fmtMoney(row?.firm_totals?.[f.id] || 0),
-        sortValue: (row) => Number(row?.firm_totals?.[f.id] || 0),
-      })),
-      {
-        key: "total",
-        label: "Total",
-        render: (v) => fmtMoney(v),
-        sortValue: (row) => Number(row?.total || 0),
-      },
-    ],
-    [reportFirms],
+    () => {
+      const firmValueKey = metric === "received"
+        ? "firm_received"
+        : metric === "outstanding" ? "firm_outstanding" : "firm_totals";
+      const totalValueKey = metric === "received"
+        ? "received"
+        : metric === "outstanding" ? "outstanding" : "total";
+
+      return [
+        { key: "party_name", label: "Party", wrap: true },
+        ...reportFirms.map((f) => ({
+          key: `firm_${f.id}`,
+          label: f.name,
+          render: (_v, row) => fmtMoney(row?.[firmValueKey]?.[f.id] || 0),
+          sortValue: (row) => Number(row?.[firmValueKey]?.[f.id] || 0),
+        })),
+        {
+          key: totalValueKey,
+          label: metric === "received" ? "Total Received" : metric === "outstanding" ? "Total Outstanding" : "Total Billed",
+          render: (v) => fmtMoney(v),
+          sortValue: (row) => Number(row?.[totalValueKey] || 0),
+        },
+      ];
+    },
+    [metric, reportFirms],
   );
 
   const filteredRows = useMemo(() => {
@@ -111,8 +130,12 @@ export default function ReportsPartyBillsAllFirms() {
     if (page > pages) setPage(pages);
   }, [page, pages]);
 
-  const filteredTotal = useMemo(
-    () => filteredRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+  const filteredTotals = useMemo(
+    () => filteredRows.reduce((totals, row) => ({
+      billed: totals.billed + Number(row.total || 0),
+      received: totals.received + Number(row.received || 0),
+      outstanding: totals.outstanding + Number(row.outstanding || 0),
+    }), { billed: 0, received: 0, outstanding: 0 }),
     [filteredRows],
   );
 
@@ -141,7 +164,26 @@ export default function ReportsPartyBillsAllFirms() {
           <span className="text-xs text-white/60">{total} record(s)</span>
         </div>
 
-        <Card title="Party Bill Totals Across All Firms">
+        <Card title="Party Billing and Receipts Across All Firms">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-white/60">Show party and firm values for:</span>
+            <div className="flex flex-wrap gap-1 rounded-lg border border-white/10 bg-black/20 p-1">
+              {[
+                ["billed", "Billed"],
+                ["received", "Received"],
+                ["outstanding", "Outstanding"],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setMetric(key)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs transition-colors ${metric === key ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           {error ? (
             <div className="mb-3 rounded-lg border border-red-400/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
               {error}
@@ -157,35 +199,45 @@ export default function ReportsPartyBillsAllFirms() {
 
           <div className="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
             <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-              <div className="text-xs text-white/60">Parties with Bills</div>
-              <div className="text-lg font-semibold">{partyCount}</div>
-            </div>
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-              <div className="text-xs text-white/60">Bills in FY</div>
-              <div className="text-lg font-semibold">{billCount}</div>
-            </div>
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-              <div className="text-xs text-white/60">Grand Total (All Firms)</div>
+              <div className="text-xs text-white/60">Grand Total Billed</div>
               <div className="text-lg font-semibold">{fmtMoney(grandTotal)}</div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <div className="text-xs text-white/60">Total Received</div>
+              <div className="text-lg font-semibold text-emerald-200">{fmtMoney(grandReceived)}</div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <div className="text-xs text-white/60">Total Outstanding</div>
+              <div className="text-lg font-semibold text-amber-100">{fmtMoney(grandOutstanding)}</div>
             </div>
           </div>
 
+          <div className="mt-2 text-xs text-white/55">
+            {partyCount} parties with bills | {billCount} bills | {receiptCount} receipt entries in FY {fy?.label || ""}
+          </div>
+
           <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
-            <div className="mb-2 text-xs uppercase tracking-wider text-white/60">Firm Totals</div>
-            <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2 xl:grid-cols-3">
+            <div className="mb-2 text-xs uppercase tracking-wider text-white/60">Firm-wise Summary</div>
+            <div className="space-y-2 text-sm">
               {reportFirms.map((f) => (
-                <div key={f.id} className="flex items-center justify-between rounded-md border border-white/10 px-3 py-2">
-                  <span className="truncate pr-3 text-white/90">{f.name}</span>
-                  <strong>{fmtMoney(f.total)}</strong>
+                <div key={f.id} className="grid grid-cols-1 gap-2 rounded-md border border-white/10 px-3 py-2 md:grid-cols-[minmax(160px,1fr)_repeat(3,minmax(130px,auto))] md:items-center">
+                  <strong className="truncate pr-3 text-white/90">{f.name}</strong>
+                  <span className="flex justify-between gap-3 text-white/70 md:block md:text-right"><span className="md:hidden">Billed</span>{fmtMoney(f.total)}</span>
+                  <span className="flex justify-between gap-3 text-emerald-200 md:block md:text-right"><span className="md:hidden">Received</span>{fmtMoney(f.received)}</span>
+                  <span className="flex justify-between gap-3 text-amber-100 md:block md:text-right"><span className="md:hidden">Outstanding</span>{fmtMoney(f.outstanding)}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold">
-              <span>Grand Total</span>
-              <span>{fmtMoney(grandTotal)}</span>
+            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-white/10 pt-3 text-sm font-semibold md:grid-cols-[minmax(160px,1fr)_repeat(3,minmax(130px,auto))] md:text-right">
+              <span className="text-left">All Firms</span>
+              <span className="flex justify-between md:block"><span className="md:hidden">Billed</span>{fmtMoney(grandTotal)}</span>
+              <span className="flex justify-between text-emerald-200 md:block"><span className="md:hidden">Received</span>{fmtMoney(grandReceived)}</span>
+              <span className="flex justify-between text-amber-100 md:block"><span className="md:hidden">Outstanding</span>{fmtMoney(grandOutstanding)}</span>
             </div>
             {!!q.trim() && (
-              <div className="mt-1 text-xs text-white/60">Filtered total (search result): {fmtMoney(filteredTotal)}</div>
+              <div className="mt-2 text-xs text-white/60">
+                Search result: billed {fmtMoney(filteredTotals.billed)}, received {fmtMoney(filteredTotals.received)}, outstanding {fmtMoney(filteredTotals.outstanding)}
+              </div>
             )}
           </div>
         </Card>

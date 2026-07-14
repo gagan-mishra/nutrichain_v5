@@ -53,7 +53,10 @@ router.get('/party-bills-all-firms', async (req, res) => {
         rows: [],
         firm_totals: {},
         grand_total: 0,
+        grand_received: 0,
+        grand_outstanding: 0,
         bill_count: 0,
+        receipt_count: 0,
         party_count: 0,
       });
     }
@@ -70,26 +73,69 @@ router.get('/party-bills-all-firms', async (req, res) => {
        ORDER BY pb.id ASC`;
     const [bills] = await pool.execute(sql, [fyId, ...firmIds]);
 
+    // Receipts remain tied to the FY through their bill. Include every payment
+    // applied to an FY bill, even when the payment itself was entered later.
+    let receiptRows = [];
+    if ((bills || []).length) {
+      const [rows] = await pool.execute(
+        `SELECT r.party_bill_id,
+                COALESCE(SUM(r.amount), 0) AS received,
+                COUNT(*) AS receipt_count
+           FROM party_bill_receipts r
+           JOIN party_bills receipt_bill ON receipt_bill.id = r.party_bill_id
+          WHERE receipt_bill.fiscal_year_id = ?
+            AND receipt_bill.firm_id IN (${inMarks})
+          GROUP BY r.party_bill_id`,
+        [fyId, ...firmIds]
+      );
+      receiptRows = rows || [];
+    }
+    const receiptsByBill = new Map(
+      receiptRows.map((row) => [Number(row.party_bill_id), {
+        received: Number(row.received || 0),
+        count: Number(row.receipt_count || 0),
+      }])
+    );
+
     const partyMap = new Map();
     const firmTotals = new Map(firmIds.map((id) => [id, 0]));
+    const firmReceived = new Map(firmIds.map((id) => [id, 0]));
     let grandTotal = 0;
+    let grandReceived = 0;
+    let receiptCount = 0;
 
     for (const bill of bills || []) {
       const firmId = Number(bill.firm_id);
       const total = Number(await computeBillTotal(pool, firmId, bill)) || 0;
+      const receiptSummary = receiptsByBill.get(Number(bill.id)) || { received: 0, count: 0 };
+      const received = Number(receiptSummary.received || 0);
+      const outstanding = total - received;
 
       grandTotal += total;
+      grandReceived += received;
+      receiptCount += Number(receiptSummary.count || 0);
       firmTotals.set(firmId, Number(firmTotals.get(firmId) || 0) + total);
+      firmReceived.set(firmId, Number(firmReceived.get(firmId) || 0) + received);
 
       const partyId = Number(bill.party_id);
       const cur = partyMap.get(partyId) || {
         party_id: partyId,
         party_name: bill.party_name || '',
         total: 0,
+        received: 0,
+        outstanding: 0,
+        receipt_count: 0,
         firm_totals: {},
+        firm_received: {},
+        firm_outstanding: {},
       };
       cur.total += total;
+      cur.received += received;
+      cur.outstanding += outstanding;
+      cur.receipt_count += Number(receiptSummary.count || 0);
       cur.firm_totals[firmId] = Number(cur.firm_totals[firmId] || 0) + total;
+      cur.firm_received[firmId] = Number(cur.firm_received[firmId] || 0) + received;
+      cur.firm_outstanding[firmId] = Number(cur.firm_outstanding[firmId] || 0) + outstanding;
       partyMap.set(partyId, cur);
     }
 
@@ -97,15 +143,24 @@ router.get('/party-bills-all-firms', async (req, res) => {
       .map((r) => ({
         ...r,
         total: Number((r.total || 0).toFixed(2)),
+        received: Number((r.received || 0).toFixed(2)),
+        outstanding: Number((r.outstanding || 0).toFixed(2)),
+        firm_totals: Object.fromEntries(Object.entries(r.firm_totals).map(([id, value]) => [id, Number(Number(value || 0).toFixed(2))])),
+        firm_received: Object.fromEntries(Object.entries(r.firm_received).map(([id, value]) => [id, Number(Number(value || 0).toFixed(2))])),
+        firm_outstanding: Object.fromEntries(Object.entries(r.firm_outstanding).map(([id, value]) => [id, Number(Number(value || 0).toFixed(2))])),
       }))
       .sort((a, b) => (b.total || 0) - (a.total || 0));
 
     const firmsOut = firms.map((f) => {
       const id = Number(f.id);
+      const total = Number(firmTotals.get(id) || 0);
+      const received = Number(firmReceived.get(id) || 0);
       return {
         id,
         name: f.name,
-        total: Number((firmTotals.get(id) || 0).toFixed(2)),
+        total: Number(total.toFixed(2)),
+        received: Number(received.toFixed(2)),
+        outstanding: Number((total - received).toFixed(2)),
       };
     });
 
@@ -118,7 +173,10 @@ router.get('/party-bills-all-firms', async (req, res) => {
       rows,
       firm_totals: firmTotalsObj,
       grand_total: Number(grandTotal.toFixed(2)),
+      grand_received: Number(grandReceived.toFixed(2)),
+      grand_outstanding: Number((grandTotal - grandReceived).toFixed(2)),
       bill_count: Number((bills || []).length),
+      receipt_count: receiptCount,
       party_count: Number(rows.length),
     });
   } catch (e) {

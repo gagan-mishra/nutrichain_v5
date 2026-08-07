@@ -292,8 +292,8 @@ router.get('/aging', async (req, res) => {
   }
 });
 
-// Sales aggregation by period (day or month)
-// GET /reports/sales?group=day|month
+// Sales aggregation by period (day or month), for the current or all accessible firms.
+// GET /reports/sales?group=day|month&scope=current_firm|all_firms
 router.get('/sales', async (req, res) => {
   try {
     const firmId = req.ctx.firmId;
@@ -301,15 +301,32 @@ router.get('/sales', async (req, res) => {
     const group = (req.query.group || 'month').toLowerCase();
     const fmt = group === 'day' ? '%Y-%m-%d' : '%Y-%m';
     const productId = req.query.product_id ? Number(req.query.product_id) : null;
+    const scope = String(req.query.scope || 'current_firm').toLowerCase();
+    const allFirms = scope === 'all_firms';
 
-    const params = [firmId];
-    let where = 'c.firm_id = ? AND c.deleted_at IS NULL';
+    const params = [];
+    let firmWhere;
+    if (allFirms) {
+      const accessibleFirms = await listAccessibleFirms(req.user?.id);
+      const firmIds = accessibleFirms
+        .map((item) => Number(item.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+      if (!firmIds.length) return res.json([]);
+      firmWhere = `c.firm_id IN (${firmIds.map(() => '?').join(',')})`;
+      params.push(...firmIds);
+    } else {
+      firmWhere = 'c.firm_id = ?';
+      params.push(firmId);
+    }
+
+    let where = `${firmWhere} AND c.deleted_at IS NULL`;
     if (fyId) { where += ' AND c.fiscal_year_id = ?'; params.push(fyId); }
     if (productId) { where += ' AND c.product_id = ?'; params.push(productId); }
 
     const sql = `
       SELECT DATE_FORMAT(c.order_date, '${fmt}') AS period,
              COUNT(*) AS trades,
+             COUNT(DISTINCT c.firm_id) AS firms,
              SUM(COALESCE(c.max_qty, c.min_qty, 0)) AS total_qty,
              AVG(NULLIF(c.price, 0)) AS avg_price
         FROM contracts c
@@ -320,6 +337,7 @@ router.get('/sales', async (req, res) => {
     res.json(rows.map(r => ({
       period: r.period,
       trades: Number(r.trades || 0),
+      firms: Number(r.firms || 0),
       total_qty: Number(r.total_qty || 0),
       avg_price: r.avg_price == null ? null : Number(r.avg_price)
     })));

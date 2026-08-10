@@ -347,6 +347,55 @@ router.get('/sales', async (req, res) => {
   }
 });
 
+// Firm-wise quantity totals for the selected FY across every accessible firm.
+// GET /reports/sales/firm-totals?product_id=optional
+router.get('/sales/firm-totals', async (req, res) => {
+  try {
+    const fyId = req.ctx.fyId || null;
+    const productId = req.query.product_id ? Number(req.query.product_id) : null;
+    const accessibleFirms = await listAccessibleFirms(req.user?.id);
+    const firmIds = accessibleFirms
+      .map((item) => Number(item.id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+
+    if (!firmIds.length) return res.json([]);
+
+    const params = [...firmIds];
+    let where = `c.firm_id IN (${firmIds.map(() => '?').join(',')}) AND c.deleted_at IS NULL`;
+    if (fyId) { where += ' AND c.fiscal_year_id = ?'; params.push(fyId); }
+    if (productId) { where += ' AND c.product_id = ?'; params.push(productId); }
+
+    const [rows] = await pool.execute(
+      `SELECT c.firm_id,
+              COUNT(*) AS trades,
+              SUM(COALESCE(c.max_qty, c.min_qty, 0)) AS total_qty
+         FROM contracts c
+        WHERE ${where}
+        GROUP BY c.firm_id`,
+      params
+    );
+
+    const byFirm = new Map((rows || []).map((row) => [Number(row.firm_id), row]));
+    const out = accessibleFirms
+      .map((firm) => {
+        const firmId = Number(firm.id);
+        const totals = byFirm.get(firmId);
+        return {
+          firm_id: firmId,
+          firm_name: firm.name,
+          trades: Number(totals?.trades || 0),
+          total_qty: Number(totals?.total_qty || 0),
+        };
+      })
+      .sort((a, b) => b.total_qty - a.total_qty || a.firm_name.localeCompare(b.firm_name));
+
+    res.json(out);
+  } catch (e) {
+    console.error('reports sales firm-totals error:', e);
+    res.status(500).json({ error: 'failed to build firm quantity totals' });
+  }
+});
+
 // Price series for a product
 // GET /reports/price-series?product_id=&group=day|month&stat=avg|last|band
 router.get('/price-series', async (req, res) => {

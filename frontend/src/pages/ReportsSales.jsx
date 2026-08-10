@@ -180,6 +180,7 @@ export default function ReportsSales() {
   const [firms, setFirms] = useState([]);
   const [fys, setFys] = useState([]);
   const [rows, setRows] = useState([]);
+  const [firmTotals, setFirmTotals] = useState([]);
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState(null);
   const [group, setGroup] = useState("month");
@@ -208,11 +209,23 @@ export default function ReportsSales() {
 
     const params = { group, scope };
     if (productId) params.product_id = productId;
-    api.get("/reports/sales", { params })
-      .then(({ data }) => { if (active) setRows(data || []); })
+    const firmParams = productId ? { product_id: productId } : {};
+
+    Promise.all([
+      api.get("/reports/sales", { params }),
+      scope === "all_firms"
+        ? api.get("/reports/sales/firm-totals", { params: firmParams })
+        : Promise.resolve({ data: [] }),
+    ])
+      .then(([salesResponse, firmResponse]) => {
+        if (!active) return;
+        setRows(salesResponse.data || []);
+        setFirmTotals((firmResponse.data || []).map((row) => ({ ...row, id: row.firm_id })));
+      })
       .catch((requestError) => {
         if (!active) return;
         setRows([]);
+        setFirmTotals([]);
         setError(requestError?.response?.data?.error || "Failed to load sales report");
       })
       .finally(() => { if (active) setLoading(false); });
@@ -265,6 +278,25 @@ export default function ReportsSales() {
     if (group !== "month" || displayRows.length < 2) return null;
     return displayRows[displayRows.length - 1];
   }, [displayRows, group]);
+
+  const allFirmsQty = useMemo(
+    () => firmTotals.reduce((sum, row) => sum + Number(row.total_qty || 0), 0),
+    [firmTotals],
+  );
+
+  const firmTotalColumns = useMemo(() => [
+    { key: "firm_name", label: "Firm", wrap: true },
+    { key: "trades", label: "Trades" },
+    { key: "total_qty", label: "Total Qty", render: (value) => fmtQty(value) },
+    {
+      key: "share",
+      label: "Share of Total",
+      render: (_value, row) => allFirmsQty > 0
+        ? `${((Number(row.total_qty || 0) / allFirmsQty) * 100).toFixed(1)}%`
+        : "0.0%",
+      sortValue: (row) => Number(row.total_qty || 0),
+    },
+  ], [allFirmsQty]);
 
   return (
     <AppShell firm={firm} fy={fy} firms={firms} fys={fys} setFirm={setFirm} setFy={setFy} activeKey="sales-report" setActiveKey={() => {}}>
@@ -362,6 +394,21 @@ export default function ReportsSales() {
             ) : null}
           </div>
         </Card>
+
+        {scope === "all_firms" ? (
+          <div className="mt-4">
+            <Card title="Total Quantity by Firm">
+              <div className="mb-3 text-sm text-white/65">
+                Firm-wise totals for FY {fy?.label || "-"}{productId ? " and the selected product" : " across all products"}.
+              </div>
+              <DataTable columns={firmTotalColumns} rows={firmTotals} allowedActions={[]} />
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
+                <span className="text-white/70">All firms combined</span>
+                <strong className="text-lg">{fmtQty(allFirmsQty)}</strong>
+              </div>
+            </Card>
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );

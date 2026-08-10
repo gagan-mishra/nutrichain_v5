@@ -6,7 +6,7 @@
     "test": "jest --forceExit --detectOpenHandles",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "postinstall": "npx puppeteer browsers install chrome",
+    "postinstall": "node node_modules/puppeteer/install.mjs",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "gen": "node scripts/generate.js",

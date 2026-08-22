@@ -377,3 +377,4 @@ function toDateStr(v) {
 }
 
 module.exports = router;
+module.exports.buildLedgerPayload = buildLedgerPayload;

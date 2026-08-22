@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   CircleAlert,
   LoaderCircle,
+  Sparkles,
 } from "lucide-react";
 import { glass } from "./primitives";
 import ChangePasswordDialog from "./change-password-dialog";
@@ -233,6 +234,7 @@ export function AppShell({
         icon: BarChart3,
         items: [
           { key: "party-reports",     label: "Party Reports",     path: "/reports/party",      icon: <PieChart size={16} /> },
+          { key: "party-insights", label: (<span className="inline-flex items-center gap-1.5">Party Insights <span className="rounded border border-amber-300/25 bg-amber-300/10 px-1 py-0.5 text-[8px] text-amber-200">BETA</span></span>), path: "/reports/party-insights", icon: <Sparkles size={16} /> },
           { key: "sales-report",      label: "Sales Report",      path: "/reports/sales",      icon: <FileText size={16} /> },
           { key: "product-report",    label: "Product Report",    path: "/reports/product",    icon: <Package size={16} /> },
           { key: "transaction-report",label: "Transaction Report",path: "/reports/transaction",icon: <ArrowRightLeft size={16} /> },
@@ -523,6 +525,7 @@ function labelFromKey(key) {
     "bill-receive": "Bill Receive",
     "party-ledger": "Party Ledger",
     "party-reports": "Party Reports",
+    "party-insights": "Party Insights (Beta)",
     "sales-report": "Sales Report",
     "product-report": "Product Report",
     "transaction-report": "Transaction Report",

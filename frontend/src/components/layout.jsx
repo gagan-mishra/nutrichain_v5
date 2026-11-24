@@ -288,7 +288,7 @@ export function AppShell({
   };
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#030712" }}>
+    <div className="flex h-dvh overflow-hidden" style={{ backgroundColor: "#030712" }}>
       {/* Sidebar (sticky) */}
       <aside className={`relative hidden w-72 shrink-0 flex-col p-3 text-white md:flex ${glass} md:sticky md:top-0 md:h-screen md:overflow-y-auto`}>
         <div className={`mb-3 rounded-2xl p-4 ${glass}`}>
@@ -430,7 +430,7 @@ export function AppShell({
         </div>
 
         {/* Content */}
-        <div className="min-h-[60vh] flex-1 p-6 pb-40 pb-[env(safe-area-inset-bottom)]">
+        <div className="min-h-[60vh] flex-1 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
             {children}
           </motion.div>

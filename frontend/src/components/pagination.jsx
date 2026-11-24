@@ -27,8 +27,8 @@ export default function Pagination({
 
   return (
     <>
-      <div className="sticky bottom-2 z-40 mb-4 mt-2 rounded-2xl border border-white/20 bg-slate-950/95 px-3 py-2 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="sticky bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 mb-4 mt-2 rounded-2xl border border-white/20 bg-slate-950/95 px-3 py-2 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur max-md:[&_button]:min-h-11 max-md:[&_input]:min-h-11">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 md:gap-3">
           <div className="text-xs">
             Page {currentPage} of {pages} - {total} item{total === 1 ? "" : "s"}
           </div>

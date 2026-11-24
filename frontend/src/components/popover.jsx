@@ -1,100 +1,69 @@
-import React, { useRef, useEffect, useLayoutEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { autoUpdate, computePosition, flip, hide, offset, shift, size } from "@floating-ui/dom";
 
-export function useOutsideClick(ref, onClick) {
-  useEffect(() => {
-    function handler(e) {
-      if (ref.current && !ref.current.contains(e.target)) onClick?.();
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [ref, onClick]);
-}
-
-function useFloating(triggerRef, panelRef, open, widthPx = 288) {
-  const [style, setStyle] = useState({ left: 0, top: 0, width: widthPx });
+export function Popover({ open, onClose, anchorRef, widthPx = 288, children, id }) {
+  const panelRef = useRef(null);
 
   useLayoutEffect(() => {
-    let raf = 0;
+    const anchor = anchorRef.current;
+    const panel = panelRef.current;
+    if (!open || !anchor || !panel) return;
 
-    function place() {
-      const el = triggerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const gap = 8;
-      const w = widthPx || r.width;
-
-      // Try to keep inside viewport; prefer aligning right edges if near right side
-      let left = Math.min(r.left, Math.max(8, window.innerWidth - w - 8));
-      if (r.right - w >= 8) left = r.right - w;
-
-      // Measure panel height if available; fallback to a reasonable estimate.
-      const ph = panelRef.current?.offsetHeight || Math.min(360, Math.floor(window.innerHeight * 0.5));
-      const downTop = r.bottom + gap;
-      const upTop = r.top - ph - gap;
-      let top;
-      if (downTop + ph <= window.innerHeight - 8) {
-        // fits below
-        top = downTop;
-      } else if (upTop >= 8) {
-        // fits above
-        top = upTop;
-      } else {
-        // clamp within viewport
-        top = Math.max(8, Math.min(downTop, window.innerHeight - ph - 8));
-      }
-
-      setStyle((prev) => {
-        if (prev.left !== left || prev.top !== top || prev.width !== w) {
-          return { left, top, width: w };
-        }
-        return prev;
+    let version = 0;
+    const update = async () => {
+      const request = ++version;
+      const { x, y, middlewareData } = await computePosition(anchor, panel, {
+        strategy: "fixed",
+        placement: widthPx ? "bottom-end" : "bottom-start",
+        middleware: [
+          offset(6), flip({ padding: 8 }), shift({ padding: 8 }),
+          size({
+            padding: 8,
+            apply({ availableWidth, availableHeight, rects }) {
+              if (request !== version) return;
+              panel.style.width = Math.max(0, Math.min(widthPx || rects.reference.width, availableWidth)) + "px";
+              panel.style.maxHeight = Math.max(0, availableHeight) + "px";
+            },
+          }),
+          hide(),
+        ],
       });
-      raf = requestAnimationFrame(place);
+      if (request !== version) return;
+      Object.assign(panel.style, {
+        left: x + "px", top: y + "px", opacity: 1,
+        visibility: middlewareData.hide?.referenceHidden ? "hidden" : "visible",
+      });
+    };
+    const stop = autoUpdate(anchor, panel, update);
+    return () => { version++; stop(); };
+  }, [anchorRef, open, widthPx]);
+
+  useEffect(() => {
+    if (!open) return;
+    function outside(event) {
+      if (!panelRef.current?.contains(event.target) && !anchorRef.current?.contains(event.target)) onClose();
     }
-
-    if (open) {
-      place();
-      const onResize = () => cancelAnimationFrame(raf) || (raf = requestAnimationFrame(place));
-      window.addEventListener("resize", onResize, { passive: true });
-      return () => {
-        window.removeEventListener("resize", onResize);
-        cancelAnimationFrame(raf);
-      };
+    function escape(event) {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      onClose();
+      anchorRef.current?.focus({ preventScroll: true });
     }
-  }, [triggerRef, open, widthPx]);
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("focusin", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("focusin", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open, onClose, anchorRef]);
 
-  return style;
-}
-
-export function Popover({ open, onClose, anchorRef, widthPx = 288, children }) {
-  const panelRef = useRef(null);
-  useOutsideClick(panelRef, onClose);
-  const style = useFloating(anchorRef, panelRef, open, widthPx);
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          ref={panelRef}
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.18 }}
-          className="
-            fixed z-[100000] rounded-2xl p-2 text-white
-            bg-white/10 backdrop-blur-2xl backdrop-saturate-200
-            border border-white/10 ring-1 ring-white/20
-            shadow-[0_10px_50px_rgba(0,0,0,0.45)]
-            max-h-[calc(100vh-16px)] overflow-auto
-          "
-          style={style}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body
+  return open && createPortal(
+    <div ref={panelRef} id={id} style={{ opacity: 0 }}
+      className="fixed left-0 top-0 z-[100000] flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-slate-950/95 p-2 text-white shadow-2xl backdrop-blur-xl">
+      {children}
+    </div>, document.body
   );
 }

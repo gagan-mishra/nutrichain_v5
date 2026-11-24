@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   Printer,
   Mail,
@@ -13,6 +13,31 @@ import {
 import { glass } from "./primitives";
 import { IconButton } from "./primitives";
 
+const phoneWidth = window.matchMedia("(max-width: 767px)");
+function subscribeWidth(listener) {
+  phoneWidth.addEventListener("change", listener);
+  return () => phoneWidth.removeEventListener("change", listener);
+}
+const actions = [
+  ["download", "Download", <Download size={16} />], ["print", "Print", <Printer size={16} />],
+  ["mail", "Mail", <Mail size={16} />], ["edit", "Edit", <Pencil size={16} />],
+  ["receive", "Receive", <Banknote size={16} />], ["delete", "Delete", <Trash2 size={16} />],
+];
+
+function RowActions({ allowed, onAction, row }) {
+  return <div className="flex flex-wrap items-center gap-2">
+    {actions.filter(([key]) => allowed.includes(key)).map(([key, label, icon]) => (
+      <IconButton key={key} title={label} onClick={() => onAction?.(key, row)}>
+        {icon}
+      </IconButton>
+    ))}
+  </div>;
+}
+
+function renderCell(column, row, index) {
+  return column.render ? column.render(row[column.key], row, index) : row[column.key];
+}
+
 export default function DataTable({
   columns,
   rows,
@@ -24,6 +49,7 @@ export default function DataTable({
   const [sortBy, setSortBy] = useState({ key: null, dir: "asc" });
   const [xOverflow, setXOverflow] = useState(false);
   const [scrollTrackWidth, setScrollTrackWidth] = useState(0);
+  const isPhone = useSyncExternalStore(subscribeWidth, () => phoneWidth.matches);
   const showActions = Array.isArray(allowedActions) && allowedActions.length > 0;
   const bodyScrollRef = useRef(null);
   const topScrollRef = useRef(null);
@@ -116,7 +142,7 @@ export default function DataTable({
       window.removeEventListener("resize", updateMetrics);
       if (ro) ro.disconnect();
     };
-  }, [columns, displayRows.length, showActions, indexColumn]);
+  }, [columns, displayRows.length, showActions, indexColumn, isPhone]);
 
   function syncTopFromBody() {
     const bodyEl = bodyScrollRef.current;
@@ -134,6 +160,56 @@ export default function DataTable({
     syncLockRef.current = true;
     bodyEl.scrollLeft = topEl.scrollLeft;
     requestAnimationFrame(() => { syncLockRef.current = false; });
+  }
+
+  if (isPhone) {
+    const primary = columns.find((column) => column.key !== "_sn");
+    const details = columns.filter((column) => column !== primary && column.key !== "_sn");
+    const sortable = columns.filter(isSortable);
+    return (
+      <div className="mb-3 space-y-2 text-white">
+        {displayRows.length > 1 && sortable.length > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <label className="flex min-w-0 flex-1 items-center gap-2">
+              Sort
+              <select value={activeSortCol?.key || ""} className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-2"
+                onChange={(event) => setSortBy({ key: event.target.value || null, dir: "asc" })}>
+                <option value="">Default order</option>
+                {sortable.map((col) => <option key={col.key} value={col.key}>{col.label}</option>)}
+              </select>
+            </label>
+            {activeSortCol && <button type="button" className="min-h-11 rounded-lg border border-white/15 px-2"
+              aria-label={`Sort ${sortBy.dir === "asc" ? "descending" : "ascending"}`}
+              onClick={() => setSortBy({ key: sortBy.key, dir: sortBy.dir === "asc" ? "desc" : "asc" })}>
+              {sortBy.dir === "asc" ? "Ascending" : "Descending"}
+            </button>}
+          </div>
+        )}
+        {!displayRows.length && <p className="py-6 text-center text-sm text-white/60">No records yet.</p>}
+        <ul className="space-y-2">
+          {displayRows.map((row, i) => (
+            <li key={row.id ?? i} className="min-w-0 rounded-xl border border-white/15 bg-white/5 px-3 py-3 text-sm [overflow-wrap:anywhere]">
+              <div className="flex items-start justify-between gap-2">
+                {primary && <div>
+                  <div className="text-xs text-white/60">{primary.label}</div>
+                  <strong>{renderCell(primary, row, i)}</strong>
+                </div>}
+                {(indexColumn || row._sn != null) && <span className="text-xs text-white/60">#{indexColumn ? indexStart + i : row._sn}</span>}
+              </div>
+              {details.length > 0 && <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-white/10 pt-2">
+                {details.map((col) => <div key={col.key} className="min-w-0">
+                  <dt className="text-xs text-white/60">{col.label}</dt>
+                  <dd>{renderCell(col, row, i) ?? "-"}</dd>
+                </div>)}
+              </dl>}
+              {showActions && <div className="mt-3 border-t border-white/10 pt-2">
+                <RowActions allowed={allowedActions} onAction={onAction} row={row} />
+              </div>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   }
 
   return (
@@ -195,44 +271,13 @@ export default function DataTable({
                     key={c.key}
                     className={`px-2 py-2 sm:px-3 ${c.wrap ? "whitespace-normal" : "whitespace-nowrap"}`}
                   >
-                    {c.render ? c.render(r[c.key], r, i) : r[c.key]}
+                    {renderCell(c, r, i)}
                   </td>
                 ))}
 
                 {showActions && (
                   <td className="px-2 py-2 sm:px-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {allowedActions.includes("download") && (
-                        <IconButton title="Download" onClick={() => onAction?.("download", r)}>
-                          <Download size={16} />
-                        </IconButton>
-                      )}
-                      {allowedActions.includes("print") && (
-                        <IconButton title="Print" onClick={() => onAction?.("print", r)}>
-                          <Printer size={16} />
-                        </IconButton>
-                      )}
-                      {allowedActions.includes("mail") && (
-                        <IconButton title="Mail" onClick={() => onAction?.("mail", r)}>
-                          <Mail size={16} />
-                        </IconButton>
-                      )}
-                      {allowedActions.includes("edit") && (
-                        <IconButton title="Edit" onClick={() => onAction?.("edit", r)}>
-                          <Pencil size={16} />
-                        </IconButton>
-                      )}
-                      {allowedActions.includes("receive") && (
-                        <IconButton title="Receive" onClick={() => onAction?.("receive", r)}>
-                          <Banknote size={16} />
-                        </IconButton>
-                      )}
-                      {allowedActions.includes("delete") && (
-                        <IconButton title="Delete" onClick={() => onAction?.("delete", r)}>
-                          <Trash2 size={16} />
-                        </IconButton>
-                      )}
-                    </div>
+                    <RowActions allowed={allowedActions} onAction={onAction} row={r} />
                   </td>
                 )}
               </tr>

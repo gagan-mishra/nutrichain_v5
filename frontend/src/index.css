@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Keep editable controls legible at their focused size in mobile Safari,
+   including search inputs mounted in a portal and phones in landscape. */
+@media screen and (max-width: 767px), screen and (pointer: coarse) {
+  :where(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, select, [contenteditable="true"]) {
+    font-size: max(16px, 1rem);
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 /* Ensure dropdown options are readable in dark UI (Windows/Chrome).
    Many browsers render <option> on a native white popup; forcing the
    option text to dark prevents "white on white" invisible items. */

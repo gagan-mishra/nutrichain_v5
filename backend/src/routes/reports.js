@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../lib/db');
+const { listAccessibleFirms } = require('../lib/report-firms');
 const { requireAuth } = require('../middleware/auth');
 const { requireContext } = require('../middleware/context');
 
@@ -7,35 +8,6 @@ const router = express.Router();
 router.use(requireAuth, requireContext);
 
 const DEFAULT_BROKERAGE = Number(process.env.DEFAULT_BROKERAGE_RATE) || 30;
-
-function isMissingUserFirmsTable(err) {
-  return err?.code === 'ER_NO_SUCH_TABLE' && String(err?.message || '').includes('user_firms');
-}
-
-async function listAccessibleFirms(userId) {
-  let useUserFirmScope = false;
-  try {
-    const [[cnt]] = await pool.execute('SELECT COUNT(*) AS c FROM user_firms WHERE user_id = ?', [userId]);
-    useUserFirmScope = (cnt?.c || 0) > 0;
-  } catch (e) {
-    if (!isMissingUserFirmsTable(e)) throw e;
-    console.warn('user_firms table missing; reports fallback to all firms');
-  }
-
-  if (useUserFirmScope) {
-    const [rows] = await pool.execute(
-      `SELECT f.id, f.name
-         FROM firms f
-         JOIN user_firms uf ON uf.firm_id = f.id AND uf.user_id = ?
-        ORDER BY f.name ASC`,
-      [userId]
-    );
-    return rows || [];
-  }
-
-  const [rows] = await pool.execute('SELECT id, name FROM firms ORDER BY name ASC');
-  return rows || [];
-}
 
 // Cross-firm party-bill totals for selected FY
 // GET /reports/party-bills-all-firms?fy_id=optional

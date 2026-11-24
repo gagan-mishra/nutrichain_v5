@@ -1,11 +1,12 @@
 const express = require('express');
 const { pool } = require('../lib/db');
+const { listAccessibleFirms } = require('../lib/report-firms');
 const { requireAuth } = require('../middleware/auth');
 const { requireContext } = require('../middleware/context');
 const { renderPdfFromHtml } = require('../lib/pdf-renderer');
 const { derivePartyInsights, resolveInsightPeriod } = require('../lib/party-insights');
 const { buildPartyInsightsPrintHtml } = require('../lib/party-insights-template');
-const { buildLedgerPayload } = require('./party-ledger');
+const { loadLedgerBillRows, sumLedgerBills } = require('./party-ledger');
 
 const router = express.Router();
 router.use(requireAuth, requireContext);
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
     const partyId = Number(req.query.party_id);
     if (!partyId) return res.status(400).json({ error: 'party_id required' });
     res.json(await buildPartyInsightsPayload({
-      firmId: req.ctx.firmId,
+      userId: req.user.id,
       fyId: req.ctx.fyId,
       partyId,
       periodKey: req.query.period,
@@ -33,7 +34,7 @@ router.get('/pdf', async (req, res) => {
     if (!partyId) return res.status(400).json({ error: 'party_id required' });
 
     const payload = await buildPartyInsightsPayload({
-      firmId: req.ctx.firmId,
+      userId: req.user.id,
       fyId: req.ctx.fyId,
       partyId,
       periodKey: req.query.period,
@@ -62,20 +63,21 @@ router.get('/pdf', async (req, res) => {
   }
 });
 
-async function buildPartyInsightsPayload({ firmId, fyId, partyId, periodKey = 'consolidated', today = new Date() }) {
+async function buildPartyInsightsPayload({ userId, fyId, partyId, periodKey = 'consolidated', today = new Date() }) {
   if (!fyId) {
     const error = new Error('Select a fiscal year');
     error.httpStatus = 400;
     throw error;
   }
 
-  const [[[firm]], [[party]], [[fy]]] = await Promise.all([
-    pool.execute('SELECT id, name, address, gst_no FROM firms WHERE id = ? LIMIT 1', [firmId]),
+  const [firms, [[party]], [[fy]]] = await Promise.all([
+    listAccessibleFirms(userId),
     pool.execute('SELECT id, name, address, contact, gst_no FROM parties WHERE id = ? LIMIT 1', [partyId]),
     pool.execute('SELECT id, label, start_date, end_date FROM fiscal_years WHERE id = ? LIMIT 1', [fyId]),
   ]);
 
-  if (!firm) throwHttp(404, 'Firm not found');
+  if (!firms.length) throwHttp(403, 'No accessible firms');
+  const firmIds = firms.map((firm) => firm.id);
   if (!party) throwHttp(404, 'Party not found');
   if (!fy) throwHttp(404, 'Fiscal year not found');
   const period = resolveInsightPeriod(fy, periodKey, today);
@@ -93,35 +95,33 @@ async function buildPartyInsightsPayload({ firmId, fyId, partyId, periodKey = 'c
        LEFT JOIN products product ON product.id = c.product_id
        LEFT JOIN parties seller ON seller.id = c.seller_id
        LEFT JOIN parties buyer ON buyer.id = c.buyer_id
-      WHERE c.firm_id = ?
+      WHERE c.firm_id IN (${firmIds.map(() => '?').join(',')})
         AND c.fiscal_year_id = ?
         AND c.deleted_at IS NULL
         AND (c.seller_id = ? OR c.buyer_id = ?)
         AND c.order_date BETWEEN ? AND ?
       ORDER BY c.order_date ASC, c.id ASC`,
-    [firmId, fyId, partyId, partyId, period.start_date, period.end_date]
+    [...firmIds, fyId, partyId, partyId, period.start_date, period.end_date]
   );
 
-  const todayText = toDateStr(today);
-  const ledger = await buildLedgerPayload({
-    firmId,
+  const bills = await loadLedgerBillRows({
+    firmIds,
     fyId,
     partyId,
-    fromInput: period.start_date,
-    toInput: period.end_date,
-    asOfInput: todayText,
+    from: period.start_date,
+    to: period.end_date,
+    asOf: toDateStr(today),
   });
   const insights = derivePartyInsights({
     contracts,
     partyId,
     period,
-    financial: ledger.totals,
+    financial: sumLedgerBills(bills),
     today,
   });
 
   return {
     meta: {
-      firm,
       party,
       fy: {
         id: fy.id,
@@ -131,7 +131,7 @@ async function buildPartyInsightsPayload({ firmId, fyId, partyId, periodKey = 'c
       },
       period,
       generated_at: new Date().toISOString(),
-      scope: 'current_firm_fy_and_period',
+      scope: 'all_firms',
     },
     ...insights,
   };

@@ -48,7 +48,6 @@ function buildPartyInsightsPrintHtml(payload) {
   const opportunities = Array.isArray(payload?.opportunities) ? payload.opportunities : [];
   const quantities = Array.isArray(payload?.quantity_by_unit) ? payload.quantity_by_unit : [];
   const party = meta.party || {};
-  const firm = meta.firm || {};
   const fy = meta.fy || {};
   const period = meta.period || {
     key: 'consolidated',
@@ -111,7 +110,6 @@ function buildPartyInsightsPrintHtml(payload) {
     .muted { color:var(--muted); }
     .badge { display:inline-block; border:1px solid #f2c98b; border-radius:999px; padding:3px 8px; background:#fff8e8; color:#8a4b00; font-size:8px; font-weight:800; letter-spacing:.8px; }
     .right { text-align:right; min-width:180px; }
-    .right strong { display:block; font-size:13px; }
     .right div { margin-top:2px; }
     .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:11px 0; }
     .kpi { border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; }
@@ -166,7 +164,6 @@ function buildPartyInsightsPrintHtml(payload) {
         </div>
         <div class="right">
           <span class="badge">BETA REPORT</span>
-          <strong>${esc(firm.name || '')}</strong>
           <div class="muted">FY ${esc(fy.label || '')} | ${esc(period.label || '')}${period.is_ongoing && !period.is_consolidated ? ' (Ongoing)' : ''}</div>
           <div class="muted">${dmy(period.start_date)} to ${dmy(period.end_date)}</div>
         </div>
@@ -210,7 +207,7 @@ function buildPartyInsightsPrintHtml(payload) {
       <div class="continuation">
         <div class="continuation-head">
           <div><div class="eyebrow">Relationship details</div><strong>${esc(party.name || '')}</strong></div>
-          <div class="right muted">${esc(firm.name || '')}<br/>FY ${esc(fy.label || '')} | ${esc(period.label || '')}</div>
+          <div class="right muted">FY ${esc(fy.label || '')} | ${esc(period.label || '')}</div>
         </div>
 
         <div class="profile">

@@ -194,7 +194,7 @@ export default function PartyInsights() {
   useEffect(() => {
     setPayload(null);
     setError("");
-  }, [firm?.id, fy?.id, periodKey]);
+  }, [fy?.id, periodKey]);
 
   async function generate() {
     if (!partyId) return toast.error("Select a party first");
@@ -277,8 +277,8 @@ export default function PartyInsights() {
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">
                 <Sparkles size={15} /> Party Insights <span className="rounded border border-amber-300/25 bg-amber-300/10 px-1.5 py-0.5 text-[9px]">BETA</span>
               </div>
-              <h2 className="mt-1.5 text-lg font-semibold">Turn a quarter or the complete FY into a useful relationship report.</h2>
-              <p className="mt-1 text-sm text-white/55">Choose any FY quarter or consolidated view for volume, pricing, connections, momentum, and payment position.</p>
+              <h2 className="mt-1.5 text-lg font-semibold">Party activity across all firms</h2>
+              <p className="mt-1 text-sm text-white/55">See combined trades, pricing, and payments for one party. Choose a quarter or the full fiscal year.</p>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(2,minmax(0,1fr))_auto] lg:items-end">
               <div>
@@ -314,7 +314,7 @@ export default function PartyInsights() {
           <div className="flex min-h-[310px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-black/10 px-5 text-center">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-cyan-200"><FileBarChart size={27} /></div>
             <h3 className="mt-3 font-semibold">Select a party to build the report</h3>
-            <p className="mt-1 max-w-lg text-sm text-white/50">The calculations use only the current firm, selected FY, and selected quarter or consolidated period. Nothing is saved or changed.</p>
+            <p className="mt-1 max-w-lg text-sm text-white/50">The report includes every firm you can access, regardless of the firm selected in the sidebar.</p>
           </div>
         ) : null}
 
@@ -329,7 +329,7 @@ export default function PartyInsights() {
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
               <div>
                 <div className="font-semibold">{payload.meta?.party?.name}</div>
-                <div className="text-xs text-white/50">{payload.meta?.firm?.name} | FY {payload.meta?.fy?.label} | {payload.meta?.period?.label}</div>
+                <div className="text-xs text-white/50">All firms | FY {payload.meta?.fy?.label} | {payload.meta?.period?.label}</div>
               </div>
               <button
                 type="button"
@@ -409,7 +409,7 @@ export default function PartyInsights() {
               </Card>
             ) : null}
 
-            <p className="px-1 text-xs leading-relaxed text-white/40">Beta note: this is a historical business summary, not a market forecast. Price insights are quantity-weighted from contracts recorded in the selected firm, FY, and report period.</p>
+            <p className="px-1 text-xs leading-relaxed text-white/40">Prices are weighted by contract quantity across all included firms for the selected period. This historical summary is not a market forecast.</p>
           </>
         ) : null}
       </div>

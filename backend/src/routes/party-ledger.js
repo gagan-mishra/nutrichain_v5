@@ -103,15 +103,28 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
     throw err;
   }
 
-  const billParams = [firmId, partyId, from, to];
+  const rows = await loadLedgerBillRows({ firmIds: [firmId], fyId, partyId, from, to, asOf });
+  const transactions = rows.length ? await loadLedgerTransactions(rows, firmId, asOf) : [];
+  return {
+    meta: { firm, party, from, to, as_of: asOf, generated_at: new Date().toISOString() },
+    rows,
+    transactions,
+    totals: sumLedgerBills(rows),
+  };
+}
+
+async function loadLedgerBillRows({ firmIds, fyId, partyId, from, to, asOf }) {
+  if (!firmIds.length) return [];
+  const firmMarks = firmIds.map(() => '?').join(',');
+  const billParams = [...firmIds, partyId, from, to];
   let billSql = `
-    SELECT pb.id, pb.bill_no, pb.bill_date, pb.from_date, pb.to_date, pb.brokerage, pb.fiscal_year_id,
+    SELECT pb.id, pb.firm_id, pb.bill_no, pb.bill_date, pb.from_date, pb.to_date, pb.brokerage, pb.fiscal_year_id,
            p.gst_type, p.cgst_rate, p.sgst_rate, p.igst_rate, p.gst_no AS party_gst,
            f.gst_no AS firm_gst
       FROM party_bills pb
       JOIN parties p ON p.id = pb.party_id
       JOIN firms f ON f.id = pb.firm_id
-     WHERE pb.firm_id = ?
+     WHERE pb.firm_id IN (${firmMarks})
        AND pb.party_id = ?
        AND pb.bill_date BETWEEN ? AND ?`;
   if (fyId) {
@@ -121,29 +134,13 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
   billSql += ' ORDER BY pb.bill_date ASC, pb.id ASC';
 
   const [bills] = await pool.execute(billSql, billParams);
-  if (!bills.length) {
-    return {
-      meta: {
-        firm,
-        party,
-        from,
-        to,
-        as_of: asOf,
-        generated_at: new Date().toISOString(),
-      },
-      rows: [],
-      transactions: [],
-      totals: { bills: 0, bill_total: 0, received: 0, outstanding: 0 },
-    };
-  }
+  if (!bills.length) return [];
 
   const rows = [];
-  const billTotalById = new Map();
-  const billNoById = new Map();
 
   for (const bill of bills) {
     const gross = await computeGrossTotalForBill({
-      firmId,
+      firmId: bill.firm_id,
       partyId,
       from: toDateStr(bill.from_date),
       to: toDateStr(bill.to_date),
@@ -155,8 +152,6 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
       brokerage: bill.brokerage,
     });
 
-    billTotalById.set(bill.id, gross.total);
-    billNoById.set(bill.id, bill.bill_no || String(bill.id));
     rows.push({
       bill_id: bill.id,
       bill_no: bill.bill_no || String(bill.id),
@@ -179,11 +174,11 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
            COUNT(*) AS receipt_count,
            MAX(r.receive_date) AS last_receive_date
       FROM party_bill_receipts r
-     WHERE r.firm_id = ?
-       AND r.party_bill_id IN (${placeholders})
+      JOIN party_bills pb ON pb.id = r.party_bill_id AND pb.firm_id = r.firm_id
+     WHERE r.party_bill_id IN (${placeholders})
        AND r.receive_date <= ?
      GROUP BY r.party_bill_id`;
-  const [aggRows] = await pool.execute(receiptAggSql, [firmId, ...billIds, asOf]);
+  const [aggRows] = await pool.execute(receiptAggSql, [...billIds, asOf]);
   const aggByBill = new Map(aggRows.map((r) => [Number(r.party_bill_id), r]));
 
   for (const row of rows) {
@@ -195,6 +190,13 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
     row.outstanding = Number((row.bill_total - row.received).toFixed(2));
   }
 
+  return rows;
+}
+
+async function loadLedgerTransactions(rows, firmId, asOf) {
+  const billIds = rows.map((row) => row.bill_id);
+  const placeholders = billIds.map(() => '?').join(',');
+  const billNoById = new Map(rows.map((row) => [Number(row.bill_id), row.bill_no]));
   const receiptTxnSql = `
     SELECT r.id, r.party_bill_id, r.receive_date, r.amount, r.mode, r.reference_no
       FROM party_bill_receipts r
@@ -245,7 +247,7 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
   });
 
   let running = 0;
-  const transactions = events.map((ev) => {
+  return events.map((ev) => {
     running += Number(ev.debit || 0) - Number(ev.credit || 0);
     return {
       date: ev.date,
@@ -258,7 +260,9 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
       note: ev.note || '',
     };
   });
+}
 
+function sumLedgerBills(rows) {
   const totals = rows.reduce((acc, r) => {
     acc.bills += 1;
     acc.bill_total += Number(r.bill_total || 0);
@@ -271,19 +275,7 @@ async function buildLedgerPayload({ firmId, fyId, partyId, fromInput, toInput, a
   totals.received = Number(totals.received.toFixed(2));
   totals.outstanding = Number(totals.outstanding.toFixed(2));
 
-  return {
-    meta: {
-      firm,
-      party,
-      from,
-      to,
-      as_of: asOf,
-      generated_at: new Date().toISOString(),
-    },
-    rows,
-    transactions,
-    totals,
-  };
+  return totals;
 }
 
 async function computeGrossTotalForBill({
@@ -378,3 +370,5 @@ function toDateStr(v) {
 
 module.exports = router;
 module.exports.buildLedgerPayload = buildLedgerPayload;
+module.exports.loadLedgerBillRows = loadLedgerBillRows;
+module.exports.sumLedgerBills = sumLedgerBills;

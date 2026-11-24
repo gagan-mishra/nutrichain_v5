@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { autoUpdate, computePosition, flip, hide, offset, shift, size } from "@floating-ui/dom";
 
-export function Popover({ open, onClose, anchorRef, widthPx = 288, children, id }) {
+export function Popover({ open, onClose, anchorRef, widthPx = 288, placement = widthPx ? "bottom-end" : "bottom-start", fitContent = false, compact = false, scrollPanel = true, children, id }) {
   const panelRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -15,14 +15,17 @@ export function Popover({ open, onClose, anchorRef, widthPx = 288, children, id 
       const request = ++version;
       const { x, y, middlewareData } = await computePosition(anchor, panel, {
         strategy: "fixed",
-        placement: widthPx ? "bottom-end" : "bottom-start",
+        placement,
         middleware: [
           offset(6), flip({ padding: 8 }), shift({ padding: 8 }),
           size({
             padding: 8,
             apply({ availableWidth, availableHeight, rects }) {
               if (request !== version) return;
-              panel.style.width = Math.max(0, Math.min(widthPx || rects.reference.width, availableWidth)) + "px";
+              const limit = Math.max(0, availableWidth);
+              panel.style.width = fitContent ? "max-content" : Math.min(widthPx || rects.reference.width, limit) + "px";
+              panel.style.minWidth = fitContent ? Math.min(rects.reference.width, limit) + "px" : "";
+              panel.style.maxWidth = fitContent ? limit + "px" : "";
               panel.style.maxHeight = Math.max(0, availableHeight) + "px";
             },
           }),
@@ -37,7 +40,7 @@ export function Popover({ open, onClose, anchorRef, widthPx = 288, children, id 
     };
     const stop = autoUpdate(anchor, panel, update);
     return () => { version++; stop(); };
-  }, [anchorRef, open, widthPx]);
+  }, [anchorRef, open, widthPx, placement, fitContent]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +65,7 @@ export function Popover({ open, onClose, anchorRef, widthPx = 288, children, id 
 
   return open && createPortal(
     <div ref={panelRef} id={id} style={{ opacity: 0 }}
-      className="fixed left-0 top-0 z-[100000] flex flex-col overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-slate-950/95 p-2 text-white shadow-2xl backdrop-blur-xl">
+      className={`fixed left-0 top-0 z-[100000] flex flex-col border border-white/15 bg-slate-950/95 text-white backdrop-blur-xl ${scrollPanel ? "overflow-y-auto overscroll-contain" : "overflow-hidden"} ${compact ? "rounded-xl p-1 shadow-lg" : "rounded-2xl p-2 shadow-2xl"}`}>
       {children}
     </div>, document.body
   );

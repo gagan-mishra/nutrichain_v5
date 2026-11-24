@@ -316,7 +316,7 @@ export default function ReportsSales() {
           </Field>
           <Field label="Product (optional)">
             <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-[200px]"><ComboBox value={productId} onChange={setProductId} options={products} placeholder="All products" /></div>
+              <div className="min-w-0 flex-1"><ComboBox value={productId} onChange={setProductId} options={products} placeholder="All products" /></div>
               <button onClick={() => setProductId(null)} className={`rounded-lg px-3 py-2 text-xs text-white/80 hover:text-white hover:bg-white/10 border border-white/10 ${glass}`}>Clear</button>
             </div>
           </Field>

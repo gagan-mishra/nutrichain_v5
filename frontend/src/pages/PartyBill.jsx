@@ -1,5 +1,6 @@
 // src/pages/PartyBill.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -7,7 +8,7 @@ import { Tabs, Card, Field, Input, glass } from "../components/primitives";
 import ComboBox from "../components/combobox";
 import DataTable from "../components/table";
 import Pagination from "../components/pagination";
-import { Plus, List as ListIcon, Save, X, Search } from "lucide-react";
+import { Plus, List as ListIcon, Save, X } from "lucide-react";
 import { useToast } from "../components/toast";
 import EditOverlay from "../components/edit-overlay";
 import ConfirmationDialog from "../components/confirm-dialog";
@@ -454,15 +455,7 @@ export default function PartyBill() {
         {tab === "list" && (
           <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${glass} bg-black/20`}>
-                <Search size={16} />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search party/bill id…"
-                  className="bg-transparent text-sm outline-none placeholder:text-white/50"
-                />
-              </div>
+              <SearchBox value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search party/bill id…" />
               <span className="text-xs text-white/60">{total} record(s)</span>
             </div>
 

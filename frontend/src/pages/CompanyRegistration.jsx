@@ -1,5 +1,6 @@
 // src/pages/FirmRegistration.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -8,7 +9,7 @@ import DataTable from "../components/table";
 import EditOverlay from "../components/edit-overlay";
 import ConfirmationDialog from "../components/confirm-dialog";
 import { useToast } from "../components/toast";
-import { Plus, List as ListIcon, Save, X, Search } from "lucide-react";
+import { Plus, List as ListIcon, Save, X } from "lucide-react";
 import Pagination from "../components/pagination";
 
 /* ---------- form ---------- */
@@ -235,15 +236,7 @@ export default function FirmRegistration() {
         {tab === "list" && (
           <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${glass} bg-black/20`}>
-                <Search size={16} />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search by firm, address, GST…"
-                  className="bg-transparent text-sm outline-none placeholder:text-white/50"
-                />
-              </div>
+              <SearchBox value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by firm, address, GST…" />
               <span className="text-xs text-white/60">{rowsForTable.length} record(s)</span>
             </div>
 

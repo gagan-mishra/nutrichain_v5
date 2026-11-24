@@ -1,5 +1,6 @@
 // src/pages/ProductRegistration.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -7,7 +8,7 @@ import { Tabs, Card, Field, Input, glass } from "../components/primitives";
 import DataTable from "../components/table";
 import ConfirmationDialog from "../components/confirm-dialog";
 import EditOverlay from "../components/edit-overlay";
-import { Plus, List as ListIcon, Trash2, Save, X, Search } from "lucide-react";
+import { Plus, List as ListIcon, Trash2, Save, X } from "lucide-react";
 import Pagination from "../components/pagination";
 import { useToast } from "../components/toast";
 
@@ -283,17 +284,7 @@ export default function ProductRegistration() {
         {tab === "list" && (
           <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-white">
-              <div
-                className={`flex items-center gap-2 rounded-xl px-3 py-2 ${glass} bg-black/20`}
-              >
-                <Search size={16} />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search by name, unit, HSN…"
-                  className="bg-transparent text-sm outline-none placeholder:text-white/50"
-                />
-              </div>
+              <SearchBox value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, unit, HSN…" />
 
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 text-xs text-white/80">

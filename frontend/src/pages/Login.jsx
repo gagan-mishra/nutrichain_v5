@@ -112,7 +112,7 @@ export default function Login() {
         <label className="mt-3 block text-xs font-semibold uppercase tracking-wider text-white/60">
           Password
         </label>
-        <div className="mt-1 flex items-center gap-2 rounded-lg bg-black/30 border border-white/10 px-2">
+        <div className="field-shell mt-1 flex items-center gap-2 rounded-lg bg-black/30 border border-white/10 px-2">
           <input
             type={showPwd ? "text" : "password"}
             className="w-full px-1 py-2 text-sm bg-transparent text-white outline-none focus:ring-0"

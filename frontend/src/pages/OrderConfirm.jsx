@@ -1,5 +1,6 @@
 // src/pages/OrderConfirm.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -21,7 +22,6 @@ import {
   List as ListIcon,
   Trash2,
   Save,
-  Search,
   ArrowUpDown,
 } from "lucide-react";
 
@@ -955,21 +955,11 @@ export default function OrderConfirm() {
         {tab === "list" && (
           <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div
-                className={`flex items-center gap-2 rounded-xl px-3 py-2 ${glass} bg-black/20`}
-              >
-                <Search size={16} />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search by contract, party, date…"
-                  className="bg-transparent text-sm outline-none placeholder:text-white/50"
-                />
-              </div>
+              <SearchBox value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by contract, party, date…" />
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSortAsc((s) => !s)}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-white/90 hover:bg-white/10 ${glass}`}
+                  className={`field-trigger inline-flex items-center gap-2 rounded-xl px-3 text-sm text-white/90 hover:bg-white/10 ${glass}`}
                   title="Toggle sort by Contract No"
                 >
                   <ArrowUpDown size={14} /> Sort: Contract No{" "}

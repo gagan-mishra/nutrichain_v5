@@ -62,7 +62,7 @@ export default function Aging(){
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
             <Field label="Party (optional)">
               <div className="flex items-center gap-2">
-                <div className="flex-1 min-w-[220px]"><ComboBox value={partyId} onChange={setPartyId} options={parties} placeholder="All parties" /></div>
+                <div className="min-w-0 flex-1"><ComboBox value={partyId} onChange={setPartyId} options={parties} placeholder="All parties" /></div>
                 <button onClick={()=>setPartyId(null)} className={`rounded-lg px-3 py-2 text-xs text-white/80 hover:text-white hover:bg-white/10 border border-white/10 ${glass}`}>Clear</button>
               </div>
             </Field>

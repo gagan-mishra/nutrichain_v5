@@ -3,7 +3,7 @@ export const glass = "bg-white/5 backdrop-blur border border-white/10"
 
 export function Field({ label, help, children, full }) {
   return (
-    <div className={full ? "md:col-span-2 overflow-visible" : "overflow-visible"}>
+    <div className={`min-w-0 overflow-visible ${full ? "md:col-span-2" : ""}`}>
       <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-white/60">{label}</label>
       {children}
       {help && <p className="mt-1 text-xs text-white/50">{help}</p>}

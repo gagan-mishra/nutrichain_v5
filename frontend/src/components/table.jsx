@@ -7,10 +7,13 @@ import {
   Download,
   Banknote,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
 import { glass } from "./primitives";
+import ComboBox from "./combobox";
 import { IconButton } from "./primitives";
 
 const phoneWidth = window.matchMedia("(max-width: 767px)");
@@ -169,20 +172,16 @@ export default function DataTable({
     return (
       <div className="mb-3 space-y-2 text-white">
         {displayRows.length > 1 && sortable.length > 0 && (
-          <div className="flex items-center gap-2 text-sm">
-            <label className="flex min-w-0 flex-1 items-center gap-2">
-              Sort
-              <select value={activeSortCol?.key || ""} className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-2"
-                onChange={(event) => setSortBy({ key: event.target.value || null, dir: "asc" })}>
-                <option value="">Default order</option>
-                {sortable.map((col) => <option key={col.key} value={col.key}>{col.label}</option>)}
-              </select>
-            </label>
-            {activeSortCol && <button type="button" className="min-h-11 rounded-lg border border-white/15 px-2"
+          <div className="toolbar-field grid w-full grid-cols-[minmax(0,1fr)_var(--field-height)] items-center gap-2 text-sm">
+            <ComboBox label="Sort by" placeholder="Default order" value={activeSortCol?.key || ""}
+              options={[{ value: "", label: "Default order" }, ...sortable.map(col => ({ value: col.key, label: col.label }))]}
+              onChange={key => setSortBy({ key: key || null, dir: "asc" })} />
+            <button type="button" disabled={!activeSortCol} className="grid size-(--field-height) place-items-center rounded-xl border border-white/10 bg-white/5 hover:enabled:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/25 disabled:opacity-40"
+              title={activeSortCol ? `Sort ${sortBy.dir === "asc" ? "descending" : "ascending"}` : "Select a column to change sort direction"}
               aria-label={`Sort ${sortBy.dir === "asc" ? "descending" : "ascending"}`}
               onClick={() => setSortBy({ key: sortBy.key, dir: sortBy.dir === "asc" ? "desc" : "asc" })}>
-              {sortBy.dir === "asc" ? "Ascending" : "Descending"}
-            </button>}
+              {sortBy.dir === "asc" ? <ArrowUp size={17} /> : <ArrowDown size={17} />}
+            </button>
           </div>
         )}
         {!displayRows.length && <p className="py-6 text-center text-sm text-white/60">No records yet.</p>}

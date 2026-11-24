@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -6,7 +7,7 @@ import { Card, glass } from "../components/primitives";
 import ComboBox from "../components/combobox";
 import DataTable from "../components/table";
 import Pagination from "../components/pagination";
-import { Search, Download, RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { useToast } from "../components/toast";
 import { formatINR } from "../utils/format";
 
@@ -316,15 +317,7 @@ export default function PartyLedger() {
           Showing bills for <strong className="text-white">{periodLabel}</strong> and receipts counted till <strong className="text-white">{asOfLabel}</strong>.
         </div>
 
-        <div className={`mb-3 flex items-center gap-2 rounded-xl px-3 py-2 ${glass} bg-black/20`}>
-          <Search size={16} />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by bill no/date..."
-            className="w-full bg-transparent text-sm outline-none placeholder:text-white/50"
-          />
-        </div>
+        <SearchBox className="mb-3" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by bill no/date..." />
 
         <div className="mb-3">
           <Card title="Ledger Totals">

@@ -1,5 +1,6 @@
 // src/pages/BillReceive.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -8,7 +9,7 @@ import { formatINR } from "../utils/format";
 import ComboBox from "../components/combobox";
 import DataTable from "../components/table";
 import Pagination from "../components/pagination";
-import { Search, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useToast } from "../components/toast";
 import EditOverlay from "../components/edit-overlay";
 
@@ -322,15 +323,7 @@ export default function BillReceive() {
     >
       <div className="text-white">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${glass} bg-black/20 flex-1 min-w-[160px]`}>
-            <Search size={16} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search party/bill id…"
-              className="bg-transparent text-sm outline-none placeholder:text-white/50"
-            />
-          </div>
+          <SearchBox value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search party/bill id…" />
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <div className="w-full sm:w-auto sm:min-w-[240px]">
               <ComboBox

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
 import DataTable from "../components/table";
 import Pagination from "../components/pagination";
-import { Card, glass } from "../components/primitives";
+import { Card } from "../components/primitives";
 
 function fmtMoney(n) {
   const value = Number(n || 0);
@@ -152,15 +152,7 @@ export default function ReportsPartyBillsAllFirms() {
     >
       <div className="text-white">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className={`flex min-w-[180px] flex-1 items-center gap-2 rounded-xl bg-black/20 px-3 py-2 ${glass}`}>
-            <Search size={16} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search party"
-              className="bg-transparent text-sm outline-none placeholder:text-white/50"
-            />
-          </div>
+          <SearchBox value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search party" />
           <span className="text-xs text-white/60">{total} record(s)</span>
         </div>
 

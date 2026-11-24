@@ -526,6 +526,7 @@
 
 // src/pages/PartyRegistration.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import SearchBox from "../components/search-box";
 import { AppShell } from "../components/layout";
 import { useCtx } from "../state/context";
 import { api } from "../api";
@@ -606,7 +607,7 @@ function PartyForm({ draft, setDraft, isEditing }) {
               />
             </Field>
             <Field label="Role">
-              <div className="flex gap-4 rounded-lg px-3 py-2 bg-white/5 border border-white/10">
+              <div className="flex min-h-(--field-height) flex-wrap items-center gap-x-4 gap-y-2 rounded-lg px-3 py-2 bg-white/5 border border-white/10">
                 {["SELLER", "BUYER", "BOTH"].map((r) => (
                   <label key={r} className="flex items-center gap-2 text-sm">
                     <input
@@ -630,7 +631,7 @@ function PartyForm({ draft, setDraft, isEditing }) {
         <Card title="Emails (up to 10)">
           <div className="space-y-2">
             {Array.from({ length: Math.min(draft.emails?.length || 1, MAX_EMAILS) }).map((_, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i} className={`grid items-center gap-2 ${draft.emails.length > 1 ? "grid-cols-[minmax(0,1fr)_2.75rem]" : "grid-cols-1"}`}>
                 <Input
                   value={draft.emails[i] || ""}
                   onChange={(v) => updateEmail(i, v)}
@@ -639,7 +640,8 @@ function PartyForm({ draft, setDraft, isEditing }) {
                 {i > 0 && (
                   <button
                     onClick={() => removeEmail(i)}
-                    className={`rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5 ${glass}`}
+                    aria-label={`Remove email ${i + 1}`}
+                    className={`grid h-11 place-items-center rounded-lg text-sm text-white/80 hover:bg-white/5 ${glass}`}
                   >
                     <X size={16} />
                   </button>
@@ -671,7 +673,7 @@ function PartyForm({ draft, setDraft, isEditing }) {
               />
             </Field>
             <Field label="GST Type">
-              <div className="flex gap-4 rounded-lg px-3 py-2 bg-white/5 border border-white/10">
+              <div className="flex min-h-(--field-height) flex-wrap items-center gap-x-4 gap-y-2 rounded-lg px-3 py-2 bg-white/5 border border-white/10">
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="radio"
@@ -952,21 +954,8 @@ export default function PartyRegistration() {
         {/* LIST */}
         {tab === "list" && (
           <div>
-            <div className="mb-3 flex items-center justify-between">
-              <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${glass} bg-black/20`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" className="opacity-80">
-                  <path
-                    fill="currentColor"
-                    d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16a6.471 6.471 0 0 0 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5ZM4 9.5C4 6.46 6.46 4 9.5 4S15 6.46 15 9.5 12.54 15 9.5 15 4 12.54 4 9.5Z"
-                  />
-                </svg>
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search name, email, GST, address…"
-                  className="bg-transparent text-sm outline-none placeholder:text-white/50"
-                />
-              </div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <SearchBox value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, GST, address…" />
               <span className="text-xs text-white/60">{rowsForTable.length} record(s)</span>
             </div>
 

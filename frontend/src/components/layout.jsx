@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Layers,
   Users,
@@ -19,18 +19,22 @@ import {
   CheckCircle2,
   CircleAlert,
   LoaderCircle,
+  Menu,
+  X,
   Sparkles,
 } from "lucide-react";
 import { glass } from "./primitives";
 import ChangePasswordDialog from "./change-password-dialog";
-import { FirmPill, FyPill, CalendarBadge } from "./pickers";
+import { FirmPill, FyPill, CalendarBadge, DrawerContext } from "./pickers";
+import SidebarDisclosure from "./sidebar-disclosure";
 import { logout, subscribeApiActivity, switchFirm } from "../api";
 
 /* ------------ Collapsible section in the sidebar ------------ */
-const Section = ({ label, icon: Icon, items, isOpen, onToggle, activeKey, onSelect }) => (
+const Section = ({ label, icon: Icon, items, isOpen, onToggle, activeKey, onSelect, duration = 0.45 }) => (
   <div className="w-full">
     <button
       onClick={onToggle}
+      aria-expanded={isOpen}
       className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-white/5"
     >
       <span className="flex items-center gap-2">
@@ -40,16 +44,8 @@ const Section = ({ label, icon: Icon, items, isOpen, onToggle, activeKey, onSele
       {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
     </button>
 
-    <AnimatePresence initial={false}>
-      {isOpen && (
-        <motion.ul
-          key="content"
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="overflow-hidden pl-2"
-        >
+    <SidebarDisclosure open={isOpen} duration={duration}>
+        <ul className="pl-2">
           {items.map((it) => {
             const active = activeKey === it.key;
             return (
@@ -71,9 +67,8 @@ const Section = ({ label, icon: Icon, items, isOpen, onToggle, activeKey, onSele
               </li>
             );
           })}
-        </motion.ul>
-      )}
-    </AnimatePresence>
+        </ul>
+    </SidebarDisclosure>
   </div>
 );
 
@@ -92,6 +87,18 @@ export function AppShell({
   const nav = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const menuButton = useRef(null);
+  const closeButton = useRef(null);
+  const reduceMotion = useReducedMotion();
+  const drawerSectionDuration = reduceMotion ? 0 : 0.18;
+  useEffect(() => {
+    if (!mobileOpen) return;
+    closeButton.current?.focus({ preventScroll: true });
+    const desktop = window.matchMedia("(min-width: 64rem)");
+    const closeOnDesktop = () => { if (desktop.matches) setMobileOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, [mobileOpen]);
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [contextNotice, setContextNotice] = useState(null);
   const contextRefreshRef = useRef({ active: false, sawRequest: false });
@@ -182,6 +189,7 @@ export function AppShell({
       if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('firmId', String(f.id));
       setFirm(f);
+      setMobileOpen(false);
       beginContextRefresh("Firm", f.name);
     } catch (e) {
       console.error(e);
@@ -198,6 +206,7 @@ export function AppShell({
   function onPickFy(nextFy) {
     if (!nextFy || String(nextFy.id) === String(displayFy?.id)) return;
     setFy(nextFy);
+    setMobileOpen(false);
     beginContextRefresh("FY", nextFy.label);
   }
 
@@ -290,14 +299,12 @@ export function AppShell({
   return (
     <div className="flex h-dvh overflow-hidden" style={{ backgroundColor: "#030712" }}>
       {/* Sidebar (sticky) */}
-      <aside className={`relative hidden w-72 shrink-0 flex-col p-3 text-white md:flex ${glass} md:sticky md:top-0 md:h-screen md:overflow-y-auto`}>
+      <aside className={`relative hidden w-72 shrink-0 flex-col p-3 text-white lg:flex ${glass} lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto`}>
         <div className={`mb-3 rounded-2xl p-4 ${glass}`}>
           <div className="mb-1 text-xs uppercase tracking-wider text-white/50">Context</div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Layers size={16} className="opacity-80" />
-              <span className="text-sm font-medium truncate">{displayFirm?.name || "Select Firm"}</span>
-            </div>
+          <div className="flex min-w-0 items-center gap-3">
+            <Layers size={16} className="shrink-0 opacity-80" />
+            <span className="min-w-0 text-sm font-medium [overflow-wrap:anywhere]">{displayFirm?.name || "Select Firm"}</span>
           </div>
           <div className="mt-3 flex items-center gap-3 text-white/80">
             <CalendarBadge fy={displayFy} />
@@ -315,6 +322,7 @@ export function AppShell({
               onToggle={() => setOpen(open === s.id ? "" : s.id)}
               activeKey={activeKey}
               onSelect={onSelect}
+              duration={reduceMotion ? 0 : 0.45}
             />
           ))}
         </nav>
@@ -325,21 +333,24 @@ export function AppShell({
       </aside>
 
       {/* Main area */}
-      <div id="app-content" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+      <div id="app-content" inert={mobileOpen} className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         {/* Top bar */}
         <div
           className={`sticky top-0 z-30 flex items-center justify-between px-4 py-3 ${glass}`}
           style={{ background: "linear-gradient(180deg, rgba(3,7,18,0.85), rgba(3,7,18,0.65))" }}
         >
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex shrink-0 items-center gap-3 text-white">
             {/* Mobile menu toggle */}
             <button
               type="button"
+              ref={menuButton}
               aria-label="Open menu"
-              className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5"
+              aria-expanded={mobileOpen}
+              aria-controls={mobileOpen ? "mobile-navigation" : undefined}
+              className="lg:hidden inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5"
               onClick={() => setMobileOpen(true)}
             >
-              <ChevronRight size={18} className="rotate-180" />
+              <Menu size={18} />
             </button>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5">
               <Layers size={18} />
@@ -350,16 +361,16 @@ export function AppShell({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex min-w-0 items-center gap-3 text-white">
             {/* Hide pickers on mobile to reduce congestion; available in drawer */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden min-w-0 items-center gap-3 lg:flex">
               <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} disabled={isChangingContext} />
               <FyPill fy={displayFy} fys={fys} onPick={onPickFy} disabled={isChangingContext} />
             </div>
 
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden shrink-0 items-center gap-3 lg:flex">
               <div className="h-8 w-px bg-white/10" />
-              <div className="rounded-lg bg-white/5 px-2 py-1 text-sm text-white">Welcome, Deepak</div>
+              <div className="hidden rounded-lg bg-white/5 px-2 py-1 text-sm text-white xl:block">Welcome, Deepak</div>
 
               {/* Change password */}
               <button
@@ -385,7 +396,7 @@ export function AppShell({
           </div>
         </div>
         <AnimatePresence>
-          {contextNotice && (
+          {contextNotice && !mobileOpen && (
             <motion.div
               key={`${contextNotice.kind}-${contextNotice.label}-${contextNotice.phase}`}
               role="status"
@@ -419,8 +430,8 @@ export function AppShell({
             <div className="text-xs uppercase tracking-widest text-white/50">Active</div>
             <h1 className="text-lg font-semibold">{labelFromKey(activeKey)}</h1>
           </div>
-          <div className="hidden md:flex items-center gap-2">
-            <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
+          <div className="hidden lg:flex items-center gap-2">
+            <span className={`min-w-0 rounded-lg px-2 py-1 text-xs text-white/70 [overflow-wrap:anywhere] ${glass}`}>
               Firm: <strong className="ml-1 text-white">{displayFirm?.name || "—"}</strong>
             </span>
             <span className={`rounded-lg px-2 py-1 text-xs text-white/70 ${glass}`}>
@@ -438,37 +449,42 @@ export function AppShell({
       </div>
       
       {/* Mobile drawer */}
+      <AnimatePresence initial={false} onExitComplete={() => {
+        if (!showChangePwd && document.activeElement === document.body) menuButton.current?.focus({ preventScroll: true });
+      }}>
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-40">
+        <motion.div key="mobile-navigation" initial="closed" animate="open" exit="closed" className="lg:hidden fixed inset-0 z-40">
           {/* Backdrop */}
-          <div
+          <motion.div
+            variants={{ closed: { opacity: 0 }, open: { opacity: 1 } }}
+            transition={{ duration: reduceMotion ? 0 : 0.18 }}
             className="absolute inset-0 bg-black/60"
             onClick={() => setMobileOpen(false)}
           />
           {/* Panel */}
-          <div className={`absolute left-0 top-0 h-full w-72 p-3 text-white ${glass} overflow-y-auto`}
-               style={{ backgroundColor: "rgba(17,24,39,0.85)" }}>
+          <motion.div id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Navigation"
+            variants={{ closed: { x: "-100%" }, open: { x: 0 } }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+            onKeyDown={event => { if (event.key === "Escape") setMobileOpen(false); }}
+            className="absolute inset-y-0 left-0 w-80 max-w-[calc(100%-2.5rem)] overflow-y-auto overscroll-contain border-r border-white/10 bg-gray-900 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <Layers size={16} className="opacity-80" />
-                <span className="text-sm font-medium">{displayFirm?.name || "Select Firm"}</span>
+                <span className="text-sm font-medium">NutriChain</span>
               </div>
               <button
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 border border-white/10"
+                ref={closeButton}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 border border-white/10"
                 aria-label="Close menu"
                 onClick={() => setMobileOpen(false)}
               >
-                <ChevronRight size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className={`mb-3 rounded-2xl p-4 ${glass}`}>
-              <div className="mb-2 text-xs uppercase tracking-wider text-white/50">Context</div>
-              <div className="flex flex-col gap-2">
-                <FirmPill firm={displayFirm} firms={firms || []} onPick={onPickFirm} disabled={isChangingContext} />
-                <FyPill fy={displayFy} fys={fys || []} onPick={onPickFy} disabled={isChangingContext} />
-              </div>
-            </div>
+            <DrawerContext firm={displayFirm} firms={firms || []} fy={displayFy} fys={fys || []}
+              onFirm={onPickFirm} onFy={onPickFy} disabled={isChangingContext} duration={drawerSectionDuration} />
+            {contextNotice && <p role="status" className="mb-3 px-2 text-sm text-white/80">{contextNotice.message}</p>}
 
             <nav className="flex flex-col gap-1">
               {sections.map((s) => (
@@ -481,13 +497,11 @@ export function AppShell({
                   onToggle={() => setOpen(open === s.id ? "" : s.id)}
                   activeKey={activeKey}
                   onSelect={onSelect}
+                  duration={drawerSectionDuration}
                 />
               ))}
             </nav>
 
-            <div className={`mt-3 rounded-2xl p-3 text-xs text-white/70 ${glass}`}>
-              Tip: Switch FY from the header.
-            </div>
             <div className="mt-4 space-y-2">
               <button
                 onClick={() => { setMobileOpen(false); setShowChangePwd(true); }}
@@ -506,9 +520,10 @@ export function AppShell({
                 Logout
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
       <ChangePasswordDialog open={showChangePwd} onClose={() => setShowChangePwd(false)} />
     </div>
   );

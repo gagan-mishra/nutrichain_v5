@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ChevronDown, Check, Search } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
+import SearchBox from "./search-box";
 import { Popover } from "./popover";
 
 export default function ComboBox({
-  value, onChange, options, placeholder = "Select…", emptyText = "No matches", onFocus,
+  value, onChange, options, placeholder = "Select…", emptyText = "No matches", onFocus, label,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -76,21 +77,17 @@ export default function ComboBox({
             openSearch(event.key === "Backspace" ? "" : event.key);
           } else navigate(event);
         }}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm backdrop-blur-sm transition hover:bg-white/10 focus:ring-2 focus:ring-white/20">
-        <span className={selected ? "truncate text-white" : "truncate text-white/60"}>{selected?.label || placeholder}</span>
+        className="field-trigger flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm backdrop-blur-sm transition hover:bg-white/10 focus:ring-2 focus:ring-white/20">
+        <span className={selected ? "truncate text-white" : "truncate text-white/60"}>{label && <span className="text-white/60">{label}: </span>}{selected?.label || placeholder}</span>
         <ChevronDown size={16} className="shrink-0 opacity-80" />
       </button>
       <Popover open={open} onClose={close} anchorRef={trigger} widthPx={null}>
-        <div className="mb-1 flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2">
-          <Search size={16} aria-hidden="true" />
-          <input ref={search} value={query} role="combobox" aria-expanded="true" aria-controls={listId}
-            aria-label={`Search: ${placeholder}`} aria-autocomplete="list"
-            aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-            placeholder="Type to search…" onKeyDown={navigate}
-            onChange={(event) => { setQuery(event.target.value); setActiveIndex(0); if (list.current) list.current.scrollTop = 0; }}
-            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/60" />
-        </div>
-        <ul ref={list} id={listId} role="listbox" aria-label={placeholder}
+        <SearchBox inset className="mb-1" inputRef={search} value={query} role="combobox" aria-expanded="true" aria-controls={listId}
+          aria-label={`Search: ${label || placeholder}`} aria-autocomplete="list"
+          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+          placeholder="Type to search…" onKeyDown={navigate}
+          onChange={(event) => { setQuery(event.target.value); setActiveIndex(0); if (list.current) list.current.scrollTop = 0; }} />
+        <ul ref={list} id={listId} role="listbox" aria-label={label || placeholder}
           className="min-h-0 max-h-56 overflow-auto overscroll-contain">
           {filtered.map((option, index) => (
             <li key={option.value} role="option" id={`${listId}-${index}`} aria-selected={option.value === value}>

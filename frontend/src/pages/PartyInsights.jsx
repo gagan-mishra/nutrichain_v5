@@ -272,7 +272,7 @@ export default function PartyInsights() {
     <AppShell firm={firm} fy={fy} firms={firms} fys={fys} setFirm={setFirm} setFy={setFy} activeKey="party-insights" setActiveKey={() => {}}>
       <div className="space-y-3 text-white">
         <div className={`rounded-2xl border border-amber-300/15 bg-gradient-to-r from-amber-400/10 via-white/[0.035] to-cyan-400/10 p-4 ${glass}`}>
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] 2xl:items-center">
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">
                 <Sparkles size={15} /> Party Insights <span className="rounded border border-amber-300/25 bg-amber-300/10 px-1.5 py-0.5 text-[9px]">BETA</span>
@@ -280,7 +280,7 @@ export default function PartyInsights() {
               <h2 className="mt-1.5 text-lg font-semibold">Turn a quarter or the complete FY into a useful relationship report.</h2>
               <p className="mt-1 text-sm text-white/55">Choose any FY quarter or consolidated view for volume, pricing, connections, momentum, and payment position.</p>
             </div>
-            <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:min-w-[720px] lg:grid-cols-[minmax(240px,1fr)_minmax(250px,1fr)_auto] lg:items-end">
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(2,minmax(0,1fr))_auto] lg:items-end">
               <div>
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">Party</label>
                 <ComboBox value={partyId} onChange={(value) => { setPartyId(value); setPayload(null); setError(""); }} options={parties} placeholder="Select party" />

@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+:root { --field-height: 2.75rem; }
+
+/* Measure compound controls at their visible border, not at the inner input. */
+:where(input:not([type]), input:is([type="text"], [type="password"], [type="search"], [type="email"], [type="tel"], [type="url"], [type="number"], [type="date"], [type="month"], [type="time"], [type="datetime-local"]), select:not([multiple], [size]), .field-trigger, .field-shell) {
+  box-sizing: border-box;
+  block-size: var(--field-height);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding-block: 0;
+}
+
+.field-shell > input {
+  block-size: 100%;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.field-shell > :where(svg, button, span) { flex-shrink: 0; }
+
+/* List searches and sort rows share a width; searches inside pickers fit the panel. */
+@media (min-width: 40rem) {
+  .toolbar-field { max-inline-size: min(100%, 22rem); }
+}
+
+:where(textarea) { min-inline-size: 0; max-inline-size: 100%; resize: vertical; }
+
 /* Keep editable controls legible at their focused size in mobile Safari,
    including search inputs mounted in a portal and phones in landscape. */
 @media screen and (max-width: 767px), screen and (pointer: coarse) {
@@ -15,11 +41,6 @@
    option text to dark prevents "white on white" invisible items. */
 @layer base {
   select option { color: #111 !important; }
-  /* Make date inputs height match ComboBox nicely */
-  input[type="date"] {
-    padding-top: 0.625rem; /* py-2.5 */
-    padding-bottom: 0.625rem;
-  }
 
   /* Theme-matched thin scrollbars (Firefox + Chromium/WebKit) */
   * {
@@ -49,6 +70,26 @@
 }
 
 @layer utilities {
+  .context-menu-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.55) transparent;
+  }
+
+  @supports selector(::-webkit-scrollbar) {
+    /* Non-auto standard properties override the custom track width in Chromium. */
+    .context-menu-scrollbar { scrollbar-width: auto; scrollbar-color: auto; }
+    .context-menu-scrollbar::-webkit-scrollbar { width: 6px; }
+    .context-menu-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .context-menu-scrollbar::-webkit-scrollbar-thumb {
+      /* A 2px visible thumb inside a 6px draggable gutter. */
+      border: 0 solid transparent;
+      border-inline-width: 2px;
+      border-radius: 999px;
+      background: rgb(148 163 184 / 0.55) padding-box;
+    }
+    .context-menu-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgb(148 163 184 / 0.85); }
+  }
+
   .table-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.7) rgba(15, 23, 42, 0.45);

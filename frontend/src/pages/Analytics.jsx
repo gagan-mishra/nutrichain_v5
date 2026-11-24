@@ -11,6 +11,7 @@ import { formatINR } from '../utils/format'
 const qtyFmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 })
 
 function toNum(v) {
+  if (v == null) return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
 }

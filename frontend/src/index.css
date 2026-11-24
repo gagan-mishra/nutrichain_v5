@@ -34,6 +34,26 @@
     min-width: 0;
     max-width: 100%;
   }
+
+  input[type="date"] {
+    display: block;
+    inline-size: 100%;
+    min-inline-size: 0;
+  }
+
+  /* Size the iOS date control like a text field without replacing its native picker. */
+  @supports (-webkit-touch-callout: none) {
+    input[type="date"] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type="date"]::-webkit-date-and-time-value {
+      min-inline-size: 0;
+      max-inline-size: 100%;
+      margin: 0;
+      text-align: start;
+    }
+  }
 }
 
 /* Ensure dropdown options are readable in dark UI (Windows/Chrome).

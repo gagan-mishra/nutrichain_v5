@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -15,6 +16,12 @@ import {
 import { formatINR } from '../utils/format'
 
 const qtyFmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 })
+const phoneWidth = window.matchMedia('(max-width: 767px)')
+function subscribeWidth(listener) {
+  phoneWidth.addEventListener('change', listener)
+  return () => phoneWidth.removeEventListener('change', listener)
+}
+const isPhone = () => phoneWidth.matches
 const CHART_ANIMATION = {
   isAnimationActive: true,
   animationDuration: 260,
@@ -22,6 +29,7 @@ const CHART_ANIMATION = {
 }
 
 function toNum(v) {
+  if (v == null) return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
 }
@@ -83,22 +91,24 @@ function mean(values) {
 }
 
 export default function PriceChart({ data = [], height = 320, yLabel = 'Price', variant = 'auto' }) {
-  if (!Array.isArray(data) || data.length === 0) {
-    return <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-white/60">No data</div>
-  }
-
-  const hasBand = data.some((d) => typeof d.min === 'number' || typeof d.max === 'number' || typeof d.avg === 'number')
+  const phone = useSyncExternalStore(subscribeWidth, isPhone)
+  const hasBand = Array.isArray(data) && data.some((d) => typeof d.min === 'number' || typeof d.max === 'number' || typeof d.avg === 'number')
   const mode = variant === 'auto' ? (hasBand ? 'band' : 'single') : variant
 
   const chartRows = useMemo(() => {
+    if (!Array.isArray(data)) return []
     if (mode !== 'band') return data
     return data.map((r) => {
       const min = toNum(r.min)
       const max = toNum(r.max)
       const gap = min != null && max != null ? Math.max(0, max - min) : null
-      return { ...r, min, max, gap }
+      return { ...r, min, max, gap, range: gap == null ? null : [min, max] }
     })
   }, [data, mode])
+
+  if (!chartRows.length) {
+    return <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-white/60">No data</div>
+  }
 
   const priceValues = mode === 'band'
     ? chartRows.flatMap((r) => [toNum(r.min), toNum(r.max), toNum(r.avg)]).filter((v) => v != null)
@@ -116,6 +126,10 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
   })()
 
   const hasQtyBars = chartRows.some((r) => Number(r?.qty || 0) > 0)
+
+  if (phone) {
+    return <PhoneTrend rows={chartRows} band={mode === 'band'} yLabel={yLabel} domain={[yMin, yMax]} hasQty={hasQtyBars} />
+  }
 
   return (
     <div className="rounded-2xl border border-slate-400/20 bg-slate-950/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -251,6 +265,76 @@ export default function PriceChart({ data = [], height = 320, yLabel = 'Price', 
         </ComposedChart>
       </ResponsiveContainer>
     </div>
+  )
+}
+
+function PhoneTrend({ rows, band, yLabel, domain, hasQty }) {
+  const [metric, setMetric] = useState('price')
+  const [period, setPeriod] = useState(null)
+  const quantity = hasQty && metric === 'qty'
+  const priceKey = band ? 'avg' : 'value'
+  const picked = rows.findIndex((r) => r.label === period)
+  const index = picked >= 0 ? picked : Math.max(0, rows.findLastIndex((r) => r[priceKey] != null))
+  const row = rows[index]
+  const price = row[priceKey]
+  const series = quantity ? 'Traded quantity' : band ? 'Weighted average' : yLabel
+  const color = quantity ? '#34d399' : band ? '#facc15' : '#7dd3fc'
+  const stepClass = 'inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-200 hover:bg-white/5 disabled:opacity-25'
+
+  return (
+    <section aria-label="Trend chart" className="-mx-2 min-w-0 rounded-xl border border-slate-400/20 bg-slate-950/55">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 px-3 pt-2">
+        <h4 className="text-sm font-semibold text-white">{quantity ? 'Quantity trend' : 'Price trend'}</h4>
+        {hasQty && (
+          <div role="group" aria-label="Chart metric" className="flex items-center gap-1">
+            {[['price', 'Price'], ['qty', 'Quantity']].map(([key, label]) => (
+              <button key={key} type="button" aria-pressed={metric === key} onClick={() => setMetric(key)}
+                className="min-h-11 text-xs font-medium">
+                <span className={`rounded-full px-3 py-1.5 ${metric === key ? 'bg-white/10 text-white' : 'text-slate-400'}`}>{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 pb-2 pt-1 text-xs text-slate-300">
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-3" style={{ background: color }} />{series}{!quantity && ' (INR)'}</span>
+        {band && !quantity && <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-2 w-3 rounded-sm bg-emerald-400/40" />Low to high</span>}
+      </div>
+      <ResponsiveContainer width="100%" height={212}>
+        <ComposedChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 2 }}
+          onClick={({ activeLabel }) => { if (activeLabel != null) setPeriod(activeLabel) }}>
+          <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="3 4" />
+          <XAxis dataKey="label" tickFormatter={shortPeriodLabel} minTickGap={20} interval="preserveStartEnd"
+            tick={{ fontSize: 11, fill: '#cbd5e1' }} tickMargin={7} axisLine={false} tickLine={false} />
+          <YAxis width="auto" domain={quantity ? [0, 'auto'] : domain} tickCount={4} tickFormatter={formatQty}
+            tick={{ fontSize: 11, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+          <Tooltip trigger="click" cursor={false} content={() => null} />
+          {quantity ? (
+            <Bar dataKey="qty" maxBarSize={24} fill={color} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          ) : (
+            <>
+              {band && <Area type="linear" dataKey="range" stroke="none" fill="#34d399" fillOpacity={0.24} isAnimationActive={false} />}
+              <Line type="linear" dataKey={priceKey} stroke={color} strokeWidth={2.5} dot={rows.length <= 15 ? { r: 2.5, fill: color } : false}
+                activeDot={false} isAnimationActive={false} />
+            </>
+          )}
+          <ReferenceLine x={row.label} stroke="rgba(226,232,240,0.55)" strokeDasharray="3 4" />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <div className="flex items-center justify-between gap-1 border-t border-white/10 px-1 py-1.5">
+        <button type="button" aria-label="Previous period" className={stepClass} disabled={index === 0}
+          onClick={() => setPeriod(rows[index - 1].label)}><ChevronLeft size={18} /></button>
+        <div aria-live="polite" aria-atomic="true" className="min-w-0 text-center">
+          <div className="text-xs text-slate-400">{longPeriodLabel(row.label)}</div>
+          <div className="mt-0.5 text-lg font-semibold tabular-nums" style={{ color }}>
+            {quantity ? formatQty(row.qty) : price == null ? 'No trade price' : formatINR(price)}
+          </div>
+          {!quantity && band && row.range && <div className="text-xs text-slate-300">Low {formatINR(row.min)} / High {formatINR(row.max)}</div>}
+        </div>
+        <button type="button" aria-label="Next period" className={stepClass} disabled={index === rows.length - 1}
+          onClick={() => setPeriod(rows[index + 1].label)}><ChevronRight size={18} /></button>
+      </div>
+    </section>
   )
 }
 

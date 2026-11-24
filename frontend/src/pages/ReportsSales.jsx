@@ -6,7 +6,8 @@ import { api } from "../api";
 import DataTable from "../components/table";
 import { glass, Card, Field } from "../components/primitives";
 import ComboBox from "../components/combobox";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Minus } from "lucide-react";
+import { useMediaQuery } from "../hooks/use-media-query";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -175,7 +176,66 @@ function SalesTooltip({ active, payload, productSelected }) {
   );
 }
 
+const salesMetrics = [
+  { key: "qty", label: "Quantity", color: "bg-cyan-400", format: fmtQty },
+  { key: "trades", label: "Trades", color: "bg-amber-400", format: fmtNum },
+  { key: "avgPrice", label: "Avg price", color: "bg-violet-400", format: fmtINR },
+];
+
+function PhoneSalesChart({ rows, group, productSelected }) {
+  const [metricKey, setMetricKey] = useState("qty");
+  const [page, setPage] = useState(0);
+  const metrics = productSelected ? salesMetrics : salesMetrics.slice(0, 2);
+  const metric = metrics.find((m) => m.key === metricKey) || metrics[0];
+  const size = 6;
+  const end = rows.length - Math.min(page, Math.ceil(rows.length / size) - 1) * size;
+  const start = Math.max(0, end - size);
+  // Keep the scale consistent when moving between older and newer periods.
+  const max = rows.reduce((largest, row) => Math.max(largest, row[metric.key] ?? 0), 0);
+  const stepClass = "grid size-11 shrink-0 place-items-center rounded-lg text-white/80 hover:bg-white/5 disabled:opacity-25";
+
+  return (
+    <section aria-label="Sales trend" className="mb-4 min-w-0 border-y border-white/10 py-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3">
+        <h4 className="text-sm font-semibold">{group === "day" ? "Daily" : "Monthly"} sales</h4>
+        <div role="group" aria-label="Sales metric" className="flex items-center gap-0.5">
+          {metrics.map((m) => (
+            <button key={m.key} type="button" aria-pressed={m.key === metric.key}
+              onClick={() => setMetricKey(m.key)} className="min-h-11 text-xs font-medium">
+              <span className={`rounded-full px-2.5 py-1.5 ${m.key === metric.key ? "bg-white/10 text-white" : "text-white/55"}`}>{m.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <ol aria-label={metric.label + " by period"} className="space-y-3 py-2">
+        {rows.slice(start, end).map((row) => {
+          const value = row[metric.key];
+          return (
+            <li key={row.fullLabel}>
+              <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs">
+                <span className="text-white/70">{row.fullLabel}</span>
+                <span className="font-semibold tabular-nums">{value == null ? "No price" : metric.format(value)}</span>
+              </div>
+              <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+                {value > 0 && <div className={`h-full min-w-px rounded-full ${metric.color}`} style={{ width: `${value / max * 100}%` }} />}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {rows.length > size && (
+        <div className="flex items-center justify-between border-t border-white/10">
+          <button type="button" aria-label="Earlier periods" disabled={!start} className={stepClass} onClick={() => setPage(page + 1)}><ChevronLeft size={18} /></button>
+          <span aria-live="polite" className="text-xs text-white/55">{start + 1} to {end} of {rows.length} {group === "day" ? "days" : "months"}</span>
+          <button type="button" aria-label="Later periods" disabled={end === rows.length} className={stepClass} onClick={() => setPage(page - 1)}><ChevronRight size={18} /></button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function ReportsSales() {
+  const phone = useMediaQuery("(max-width: 767px)");
   const { firm, fy, setFirm, setFy } = useCtx();
   const [firms, setFirms] = useState([]);
   const [fys, setFys] = useState([]);
@@ -326,6 +386,8 @@ export default function ReportsSales() {
             <div className="mb-4 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</div>
           ) : loading ? (
             <div className="mb-4 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/70">Loading sales data...</div>
+          ) : chartRows.length > 0 && phone ? (
+            <PhoneSalesChart rows={chartRows} group={group} productSelected={!!productId} />
           ) : chartRows.length > 0 ? (
             <div className="mb-4 h-[320px] rounded-xl border border-white/10 bg-black/20 p-2 sm:p-3">
               <ResponsiveContainer width="100%" height="100%">

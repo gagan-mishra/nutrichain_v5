@@ -122,7 +122,9 @@ function OrderForm({
   const wrap = isEditing ? "ring-1 ring-yellow-400/40 rounded-2xl" : "";
   const idPrefix = isEditing ? "edit" : "add";
   const qtyPriceRef = useRef(null);
+  const tabbing = useRef(false);
   const scrollQtyPriceIntoView = () => {
+    if (!tabbing.current) return;
     window.requestAnimationFrame(() => {
       qtyPriceRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -153,7 +155,9 @@ function OrderForm({
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6"
+      onKeyDownCapture={(event) => { tabbing.current = event.key === "Tab"; }}
+      onPointerDownCapture={() => { tabbing.current = false; }}>
       {/* ===== Contract & Parties ===== */}
       <div className={`${wrap} relative z-0`}>
         <Card

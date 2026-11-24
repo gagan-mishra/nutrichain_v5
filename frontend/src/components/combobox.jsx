@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import SearchBox from "./search-box";
 import { Popover } from "./popover";
+import { useMediaQuery } from "../hooks/use-media-query";
 
 export default function ComboBox({
   value, onChange, options, placeholder = "Select…", emptyText = "No matches", onFocus, label,
@@ -13,6 +14,7 @@ export default function ComboBox({
   const search = useRef(null);
   const list = useRef(null);
   const focusSearch = useRef(false);
+  const inline = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   const listId = useId();
   const selected = options.find((option) => option.value === value);
   const filtered = options.filter((option) => option.label.toLowerCase().includes(query.toLowerCase()));
@@ -81,11 +83,11 @@ export default function ComboBox({
         <span className={selected ? "truncate text-white" : "truncate text-white/60"}>{label && <span className="text-white/60">{label}: </span>}{selected?.label || placeholder}</span>
         <ChevronDown size={16} className="shrink-0 opacity-80" />
       </button>
-      <Popover open={open} onClose={close} anchorRef={trigger} widthPx={null}>
+      <Popover inline={inline} open={open} onClose={close} anchorRef={trigger} widthPx={null}>
         <SearchBox inset className="mb-1" inputRef={search} value={query} role="combobox" aria-expanded="true" aria-controls={listId}
           aria-label={`Search: ${label || placeholder}`} aria-autocomplete="list"
           aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-          placeholder="Type to search…" onKeyDown={navigate}
+          autoComplete="off" placeholder="Type to search…" onKeyDown={navigate}
           onChange={(event) => { setQuery(event.target.value); setActiveIndex(0); if (list.current) list.current.scrollTop = 0; }} />
         <ul ref={list} id={listId} role="listbox" aria-label={label || placeholder}
           className="min-h-0 max-h-56 overflow-auto overscroll-contain">
